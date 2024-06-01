@@ -16,6 +16,9 @@ fi
 
 source "${ZINIT_HOME}/zinit.zsh"
 
+# Neovim
+export PATH="$PATH:/opt/nvim/"
+
 # Add in Powerlevel10k
 zinit ice depth=1; zinit light romkatv/powerlevel10k
 
