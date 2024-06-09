@@ -61,6 +61,7 @@ alias la="ls -a"
 alias v="nvim"
 alias vi="nvim"
 alias vim="nvim"
+alias python="python3"
 
 # Keybindings
 bindkey -e
