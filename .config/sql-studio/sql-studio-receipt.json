@@ -1,0 +1,1 @@
+{"binaries":["sql-studio"],"binary_aliases":{},"cdylibs":[],"cstaticlibs":[],"install_prefix":"/home/elias/.cargo","provider":{"source":"cargo-dist","version":"0.21.1"},"source":{"app_name":"sql-studio","name":"sql-studio","owner":"frectonz","release_type":"github"},"version":"0.1.27"}
