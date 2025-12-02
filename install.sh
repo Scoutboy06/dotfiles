@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+#!/usr/bin/env bash
+
 set -e
 
 error() {
@@ -7,7 +9,7 @@ error() {
     exit 1
 }
 
-# Check for stow
+# Check for Stow
 if ! command -v stow >/dev/null 2>&1; then
     error "GNU Stow is not installed. Please install it before running this script."
 fi
@@ -26,9 +28,9 @@ case "$CONFIG" in
     omarchy)
         APP_DIRS=(
             [waybar]="omarchy"
-            # [zsh]="omarchy"
-            # [hyprland]="omarchy"
-            # [foot]="omarchy"
+            [hypr]="omarchy"
+            [OpenTabletDriver]=""
+            # add more here
         )
         ;;
     *)
@@ -47,7 +49,11 @@ for app in "${!APP_DIRS[@]}"; do
         error "Directory '$app/$pkg' does not exist"
     fi
 
-    stow --dir="$app" --target="$HOME" -v "$pkg"
+    # Ensure target directory exists (important!)
+    mkdir -p "$HOME/.config/$app"
+
+    # Dynamically target ~/.config/<app>
+    stow --dir="$app" --target="$HOME/.config/$app" -v "$pkg"
 done
 
 printf "\nDone.\n"
