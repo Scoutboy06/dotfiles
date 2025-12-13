@@ -75,7 +75,9 @@
 }
 
 tooltip {
-  padding: 2px;
+  padding: 0px;
+  background-color: @background;
+  border-radius: 8px;
 }
 
 #custom-update {
