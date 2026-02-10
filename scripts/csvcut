@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Select a subset of columns from a CSV file.
+
+Assumes the first row is a header.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import sys
+from pathlib import Path
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Keep only selected columns from a CSV (by header name)."
+    )
+    parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="Path to input CSV file",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Path to output CSV file",
+    )
+    parser.add_argument(
+        "-c",
+        "--columns",
+        required=True,
+        help="Comma-separated list of column names to keep (e.g. 'name,email,age')",
+    )
+    parser.add_argument(
+        "--delimiter",
+        default=None,
+        help="Optional single-character CSV delimiter (overrides sniffing)",
+    )
+    return parser.parse_args(argv)
+
+
+def split_columns_arg(columns: str) -> list[str]:
+    cols = [c.strip() for c in columns.split(",")]
+    cols = [c for c in cols if c]
+    if not cols:
+        raise ValueError("--columns must contain at least one column name")
+    # Preserve order; de-duplicate to avoid csv.DictWriter issues.
+    seen: set[str] = set()
+    out: list[str] = []
+    for c in cols:
+        if c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
+def sniff_dialect(sample: str) -> type[csv.Dialect]:
+    sniffer = csv.Sniffer()
+    try:
+        return sniffer.sniff(sample)
+    except csv.Error:
+        return csv.excel
+
+
+def select_columns(
+    input_path: Path, output_path: Path, columns: list[str], delimiter: str | None
+) -> None:
+    with input_path.open("r", newline="", encoding="utf-8") as f_in:
+        # Sniff dialect from a small sample, then rewind.
+        sample = f_in.read(64 * 1024)
+        f_in.seek(0)
+
+        dialect: type[csv.Dialect] = sniff_dialect(sample)
+        if delimiter is not None:
+            if len(delimiter) != 1:
+                raise ValueError("--delimiter must be a single character")
+            dialect.delimiter = delimiter
+
+        reader = csv.DictReader(f_in, dialect=dialect)
+        if reader.fieldnames is None:
+            raise ValueError("Input CSV appears to be empty or missing a header")
+
+        missing = [c for c in columns if c not in reader.fieldnames]
+        if missing:
+            raise ValueError(
+                "Requested columns not found in header: " + ", ".join(missing)
+            )
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", newline="", encoding="utf-8") as f_out:
+            writer = csv.DictWriter(
+                f_out, fieldnames=columns, dialect=dialect, extrasaction="ignore"
+            )
+            writer.writeheader()
+            for row in reader:
+                # row can contain None keys if rows have extra fields; ignore.
+                if None in row:
+                    row.pop(None, None)
+                writer.writerow(row)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+    try:
+        columns = split_columns_arg(args.columns)
+        select_columns(input_path, output_path, columns, args.delimiter)
+    except (OSError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
