@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+import argparse
+import math
+
+# Common aspect ratios people find memorable
+COMMON_RATIOS = {
+    "16:9": 16/9,
+    "4:3": 4/3,
+    "21:9": 21/9,
+    "1:1": 1,
+    "3:2": 3/2,
+    "5:4": 5/4,
+    "2:1": 2/1,
+}
+
+
+def gcd(a, b):
+    while b:
+        a, b = b, a % b
+    return a
+
+
+def normalize_ratio(w, h):
+    g = gcd(w, h)
+    return w // g, h // g
+
+
+def memorability_score(w, h):
+    # Favor small numbers
+    score = 1 / (w + h)
+    # Bonus if in common ratios
+    ratio_val = w / h
+    for label, val in COMMON_RATIOS.items():
+        if math.isclose(val, ratio_val, rel_tol=1e-3):
+            score += 1
+    return score
+
+
+def similarity_score(r1, r2):
+    return 1 / (1 + abs(r1 - r2))
+
+
+def find_best_ratio(orig_w, orig_h, max_val=21):
+    orig_ratio = orig_w / orig_h
+    best = None
+    best_score = -1
+
+    for w in range(1, max_val+1):
+        for h in range(1, max_val+1):
+            ratio_val = w / h
+            sim = similarity_score(orig_ratio, ratio_val)
+            mem = memorability_score(w, h)
+            final_score = 0.7 * sim + 0.3 * mem
+
+            if final_score > best_score:
+                best_score = final_score
+                best = (w, h, final_score)
+
+    return best
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Find a memorable aspect ratio close to the given one.")
+    parser.add_argument("width", type=int, help="Width")
+    parser.add_argument("height", type=int, help="Height")
+    args = parser.parse_args()
+
+    w, h = normalize_ratio(args.width, args.height)
+    orig_ratio = w / h
+    best_w, best_h, score = find_best_ratio(w, h)
+
+    print(f"Original ratio: {w}:{h} ({orig_ratio:.4f})")
+    print(f"Suggested memorable ratio: {best_w}:{best_h} (score={score:.4f})")
+
+
+if __name__ == "__main__":
+    main()
+

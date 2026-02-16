@@ -1,0 +1,49 @@
+%YAML 1.2
+---
+name: SFlisp
+file_extensions:
+  - sflisp
+scope: source.sflisp
+
+contexts:
+  main:
+    # Comments start with ';' and go to end of line
+    - match: ';.*$'
+      scope: comment.line.semicolon.sflisp
+
+    # Labels (at start of line, ending with ':')
+    - match: '^\s*([A-Za-z_][A-Za-z0-9_]*):'
+      captures:
+        1: entity.name.label.sflisp
+
+    # Assembler directives
+    - match: '\b(ORG|EQU|FCB|RMB)\b'
+      scope: keyword.directive.sflisp
+
+    # Instructions (common mnemonics)
+    - match: '\b(PSHA|PSHX|PSHY|PSHC|PULA|PULX|PULY|PULC|TFR|BSR|BRA|BMI|BPL|BEQ|BNE|BVS|BVC|BCS|BCC|STX|STY|STSP|JMP|JSR|CLR|NEG|INC|DEC|TST|RTS|RTI|LDX|LDY|LDSP|SBCA|SUBA|ADCA|ADDA|CMPA|BITA|ANDA|NOP|LDA|ANDCC|STA|ORCC|CLRA|NEGA|INCA|DECA|TSTA|COMA|BHI|COM|ORA|LSLA|BLS|LSL|EORA|LSRA|BGT|LSR|CMPX|LEAX|ROLA|BGE|ROL|CMPY|LEAY|RORA|BLE|ROR|CMPSP|LEASP|ASRA|BLT|ASR|EXG)\b'
+      scope: keyword.mnemonic.sflisp
+
+    # Registers
+    - match: '\b(A|X|Y|CC|SP)\b'
+      scope: variable.language.register.sflisp
+
+    # Hex numbers (e.g. $FF)
+    - match: '\$[0-9A-Fa-f]+'
+      scope: constant.numeric.hex.sflisp
+
+    # Binary numbers (e.g. %01000000)
+    - match: '%[01]+'
+      scope: constant.numeric.binary.sflisp
+
+    # Decimal numbers
+    - match: '\b[0-9]+\b'
+      scope: constant.numeric.decimal.sflisp
+
+    # Character literals (if ever used)
+    - match: "'[^']'"
+      scope: constant.character.sflisp
+
+    # Identifiers (symbols, constants, variables)
+    - match: '\b[A-Za-z_][A-Za-z0-9_]*\b'
+      scope: variable.other.sflisp

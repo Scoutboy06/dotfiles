@@ -1,0 +1,4 @@
+{
+    "shell_cmd": "qaflisp \"$file\"",
+    "working_dir": "$file_path"
+}

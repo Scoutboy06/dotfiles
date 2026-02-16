@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Convert HTML files to Markdown.
+
+Recursively finds `*.html` files under a directory and writes a sibling `.md`
+file next to each input.
+
+Requires: `python -m pip install markdownify`
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+
+try:
+    from markdownify import markdownify as html_to_md
+except ImportError:  # pragma: no cover
+    html_to_md = None
+
+
+def convert_html_file(html_path: Path, *, delete_html: bool) -> None:
+    md_path = html_path.with_suffix(".md")
+
+    with html_path.open("r", encoding="utf-8", errors="ignore") as f:
+        html_content = f.read()
+
+    assert html_to_md is not None
+    markdown_content = html_to_md(html_content)
+
+    with md_path.open("w", encoding="utf-8") as f:
+        f.write(markdown_content)
+
+    print(f"Converted: {html_path} -> {md_path}")
+
+    if delete_html:
+        html_path.unlink()
+        print(f"Deleted: {html_path}")
+
+
+def main(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(description="Recursively convert .html files to Markdown.")
+    p.add_argument("directory", type=Path, help="Root directory containing .html files")
+    p.add_argument(
+        "--delete-html",
+        action="store_true",
+        help="Delete original .html files after conversion",
+    )
+    args = p.parse_args(argv)
+
+    if html_to_md is None:
+        print(
+            "error: missing dependency 'markdownify' (install with: python -m pip install markdownify)",
+            file=sys.stderr,
+        )
+        return 2
+
+    root: Path = args.directory
+    if not root.is_dir():
+        print(f"error: not a directory: {root}", file=sys.stderr)
+        return 2
+
+    try:
+        for path in root.rglob("*.html"):
+            convert_html_file(path, delete_html=args.delete_html)
+    except OSError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

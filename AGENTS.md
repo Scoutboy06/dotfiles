@@ -5,7 +5,7 @@ system, no dedicated test runner, and no repo-wide lint config checked in.
 Most changes are to:
 
 - `install.py` (Python installer / module registry)
-- `scripts/*` (small CLI utilities, currently Python)
+- `bin/.local/bin/*` (small CLI utilities, currently Python)
 - `*.sh` (shell scripts)
 - `hypr/**`, `waybar/**`, `OpenTabletDriver/**` (config/assets)
 
@@ -31,7 +31,7 @@ writing.
 Notes:
 
 - Stow-based modules require GNU Stow (`stow`) on PATH.
-- `LinkFileModule` refuses to overwrite existing targets for safety.
+- `stow` refuses to overwrite existing targets for safety.
 
 ### Smoke checks (what passes for “tests” here)
 
@@ -41,7 +41,7 @@ after edits:
 - Validate Python parses/compiles:
   - `python3 -m compileall -q .`
 - Run script help to ensure argument parsing still works:
-  - `python3 scripts/csvcut --help`
+  - `python3 bin/.local/bin/csvcut --help`
   - `./install.py --help`
   - `./eduroam_setup.sh --help`
 - If you touched `eduroam_setup.sh`, ensure dry-run output works:

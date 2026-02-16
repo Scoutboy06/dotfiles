@@ -98,6 +98,12 @@ def build_registry() -> dict[str, Module]:
             package="OpenTabletDriver",
             target="~",
         ),
+        "sublime-text": StowModule(
+            id="sublime-text",
+            stow_dir=".",
+            package="sublime-text",
+            target="~",
+        ),
         "bin": StowModule(
             id="bin",
             stow_dir=".",
@@ -111,12 +117,20 @@ def build_configs() -> dict[str, list[str]]:
     """Config -> ordered module ids."""
 
     return {
+        # Cross-platform/common modules.
+        "global": [
+            "waybar",
+            "OpenTabletDriver",
+            "bin",
+            "sublime-text",
+        ],
         "omarchy": [
             "waybar",
             "hypr",
             "OpenTabletDriver",
             "bin",
-        ]
+            "sublime-text",
+        ],
     }
 
 
