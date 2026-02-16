@@ -27,6 +27,15 @@
       "skillFolderHash": "10b3d70962e489867ddfee7da92f7da6b0eccc4f",
       "installedAt": "2026-02-16T19:18:39.015Z",
       "updatedAt": "2026-02-16T19:18:39.015Z"
+    },
+    "mcp-builder": {
+      "source": "mcp-use/mcp-use",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mcp-use/mcp-use.git",
+      "skillPath": "skills/mcp-builder/SKILL.md",
+      "skillFolderHash": "5945a7c457770912d2ac66b948cef7181f9a321a",
+      "installedAt": "2026-02-16T23:14:26.197Z",
+      "updatedAt": "2026-02-16T23:14:26.197Z"
     }
   },
   "dismissed": {
