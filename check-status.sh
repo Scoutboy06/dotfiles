@@ -10,3 +10,5 @@ if [ -n "$STATUS" ]; then
         "Dotfiles need attention" \
         "$(printf '%s' "$STATUS" | head -n 10)"
 fi
+
+"$DOTFILES_DIR/check-agents-sync.sh"

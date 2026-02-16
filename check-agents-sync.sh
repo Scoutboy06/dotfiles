@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/p/dotfiles}"
+AGENTS_DIR="${AGENTS_DIR:-$HOME/.agents}"
+AGENTS_SYNC_DIR="${AGENTS_SYNC_DIR:-$DOTFILES_DIR/agents}"
+
+SRC_LOCK="$AGENTS_DIR/.skill-lock.json"
+DST_LOCK="$AGENTS_SYNC_DIR/.skill-lock.json"
+
+if [ ! -f "$SRC_LOCK" ]; then
+    exit 0
+fi
+
+if [ ! -f "$DST_LOCK" ]; then
+    notify-send --wait \
+        "Skills not synced" \
+        "Missing snapshot: $AGENTS_SYNC_DIR"
+    exit 0
+fi
+
+if cmp -s "$SRC_LOCK" "$DST_LOCK"; then
+    exit 0
+fi
+
+DETAILS=$(python3 - "$SRC_LOCK" "$DST_LOCK" <<'PY'
+import json
+import sys
+
+src_path = sys.argv[1]
+dst_path = sys.argv[2]
+
+
+def load(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def skills(d: dict) -> dict[str, dict]:
+    v = d.get("skills", {})
+    return v if isinstance(v, dict) else {}
+
+
+try:
+    src = load(src_path)
+    dst = load(dst_path)
+except Exception as e:
+    print(f"Lockfile changed (parse error: {e})")
+    raise SystemExit(0)
+
+src_sk = skills(src)
+dst_sk = skills(dst)
+
+src_ids = set(src_sk.keys())
+dst_ids = set(dst_sk.keys())
+
+new = sorted(src_ids - dst_ids)
+removed = sorted(dst_ids - src_ids)
+
+changed: list[str] = []
+for sid in sorted(src_ids & dst_ids):
+    s = src_sk.get(sid, {})
+    d = dst_sk.get(sid, {})
+    # Prefer stable content hash; fall back to updatedAt.
+    if s.get("skillFolderHash") != d.get("skillFolderHash"):
+        changed.append(sid)
+    elif s.get("updatedAt") != d.get("updatedAt"):
+        changed.append(sid)
+
+parts: list[str] = []
+if new:
+    parts.append("New: " + ", ".join(new))
+if changed:
+    parts.append("Updated: " + ", ".join(changed))
+if removed:
+    parts.append("Removed: " + ", ".join(removed))
+
+print("\n".join(parts) if parts else "Skills differ")
+PY
+)
+
+notify-send --wait \
+    "Skills not synced" \
+    "$(printf '%s' "$DETAILS" | head -n 10)"

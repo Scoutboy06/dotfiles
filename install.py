@@ -104,6 +104,12 @@ def build_registry() -> dict[str, Module]:
             package="sublime-text",
             target="~",
         ),
+        "agents": StowModule(
+            id="agents",
+            stow_dir=".",
+            package="agents",
+            target="~",
+        ),
         "bin": StowModule(
             id="bin",
             stow_dir=".",
@@ -123,6 +129,7 @@ def build_configs() -> dict[str, list[str]]:
             "OpenTabletDriver",
             "bin",
             "sublime-text",
+            "agents",
         ],
         "omarchy": [
             "waybar",
@@ -130,6 +137,7 @@ def build_configs() -> dict[str, list[str]]:
             "OpenTabletDriver",
             "bin",
             "sublime-text",
+            "agents",
         ],
     }
 
