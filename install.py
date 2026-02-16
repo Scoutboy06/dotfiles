@@ -79,38 +79,30 @@ def build_registry() -> dict[str, Module]:
     """
 
     return {
-        # Config packages
+        # Packages mirror the target tree under $HOME (stow target is ~).
         "waybar": StowModule(
             id="waybar",
-            stow_dir="waybar",
-            package="omarchy",
-            target="~/.config/waybar",
+            stow_dir=".",
+            package="waybar",
+            target="~",
         ),
         "hypr": StowModule(
             id="hypr",
-            stow_dir="hypr",
-            package="omarchy",
-            target="~/.config/hypr",
+            stow_dir=".",
+            package="hypr",
+            target="~",
         ),
-        # These are top-level directories in the repo; stow them from repo root.
         "OpenTabletDriver": StowModule(
             id="OpenTabletDriver",
             stow_dir=".",
             package="OpenTabletDriver",
-            target="~/.config/OpenTabletDriver",
+            target="~",
         ),
-        "opencode": StowModule(
-            id="opencode",
+        "bin": StowModule(
+            id="bin",
             stow_dir=".",
-            package="opencode",
-            target="~/.config/opencode",
-        ),
-        # Global scripts (single-file symlink into ~/.local/bin)
-        "csvcut": LinkFileModule(
-            id="csvcut",
-            source="scripts/csvcut",
-            target_dir="~/.local/bin",
-            require_executable=True,
+            package="bin",
+            target="~",
         ),
     }
 
@@ -123,8 +115,7 @@ def build_configs() -> dict[str, list[str]]:
             "waybar",
             "hypr",
             "OpenTabletDriver",
-            "opencode",
-            "csvcut",
+            "bin",
         ]
     }
 
