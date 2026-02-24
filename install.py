@@ -110,6 +110,12 @@ def build_registry() -> dict[str, Module]:
             package="agents",
             target="~",
         ),
+        "omarchy": StowModule(
+            id="omarchy",
+            stow_dir=".",
+            package="omarchy",
+            target="~",
+        ),
         "bin": StowModule(
             id="bin",
             stow_dir=".",
@@ -138,6 +144,7 @@ def build_configs() -> dict[str, list[str]]:
             "bin",
             "sublime-text",
             "agents",
+            "omarchy",
         ],
     }
 
