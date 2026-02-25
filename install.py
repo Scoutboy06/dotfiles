@@ -108,7 +108,7 @@ def build_registry() -> dict[str, Module]:
             id="agents",
             stow_dir=".",
             package="agents",
-            target="~",
+            target="~/.agents",
         ),
         "omarchy": StowModule(
             id="omarchy",
