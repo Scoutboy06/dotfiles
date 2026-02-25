@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+MODEL="/usr/share/whisper.cpp-model-medium-q5_0/ggml-medium-q5_0.bin"
+TMPDIR="/tmp/whisper-ptt"
+AUDIO="$TMPDIR/audio.wav"
+PIDFILE="$TMPDIR/recording.pid"
+TEXT="$TMPDIR/text.txt"
+
+mkdir -p "$TMPDIR"
+
+case "$1" in
+  start)
+    sox --buffer 256 -d "$AUDIO" rate 16000 channels 1 &
+    echo $! > "$PIDFILE"
+    echo "DEBUG: Just wrote to $PIDFILE"
+    ls -l "$PIDFILE"  # Add this
+
+    if [ -f "$PIDFILE" ]; then
+        echo "Started sox with PID $(cat $PIDFILE)"
+    else
+        echo "Error: Failed to create PID file at $PIDFILE"
+    fi
+    ;;
+  stop)
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat "$PIDFILE")
+
+        sleep 3
+        
+        # 1. Send SIGINT (2) instead of a hard kill
+        kill -2 "$PID" 2>/dev/null
+        
+        # 2. Wait for the process to actually exit
+        # This ensures the file is closed before Whisper starts
+        while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
+        
+        rm "$PIDFILE"
+        
+        # 3. Small safety buffer for disk I/O
+        sleep 0.2
+
+        if [ -f "$AUDIO" ]; then
+             whisper-cli -f "$AUDIO" \
+              -m "$MODEL" \
+              -l auto \
+              -nt \
+              -otxt \
+              -of "$TMPDIR/audio" \
+              -np
+
+            if [[ -f "$TMPDIR/audio.txt" ]]; then
+                # Clean leading spaces and type it
+                TEXT_OUT=$(sed 's/^[[:space:]]*//' "$TMPDIR/audio.txt")
+                wtype "$TEXT_OUT"
+            fi
+        fi
+    fi
+    ;;
+esac
