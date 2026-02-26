@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+MODEL="/usr/share/whisper.cpp-model-medium-q5_0/ggml-medium-q5_0.bin"
+VIDEO_IN="$1"
+# Create a temporary wav file name
+AUDIO_TMP="${VIDEO_IN%.*}.temp.wav"
+# Output base name (video name without extension)
+OUT_BASE="${VIDEO_IN%.*}"
+
+if [[ -z "$VIDEO_IN" ]]; then
+    echo "Usage: transcribe-video movie.mp4"
+    exit 1
+fi
+
+echo "--- Extracting audio from: $VIDEO_IN ---"
+
+# 1. Extract audio and convert to 16kHz Mono (Whisper's requirement)
+ffmpeg -i "$VIDEO_IN" -ar 16000 -ac 1 -c:a pcm_s16le "$AUDIO_TMP" -y -hide_banner -loglevel error
+
+echo "--- Transcribing (this may take a while) ---"
+
+# 2. Run Whisper
+# Adding --output-srt in case you want subtitles too!
+whisper-cli -f "$AUDIO_TMP" \
+  -m "$MODEL" \
+  -l auto \
+  -otxt \
+  -osrt \
+  -of "$OUT_BASE" \
+  --threads $(nproc)
+
+# 3. Cleanup the temp audio file
+rm "$AUDIO_TMP"
+
+echo "--- Done! Created ${OUT_BASE}.txt and ${OUT_BASE}.srt ---"
