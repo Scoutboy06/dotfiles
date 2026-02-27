@@ -45,6 +45,15 @@
       "skillFolderHash": "d28aa4ed67fe5a3f1336f0fcccb1e548c67dc864",
       "installedAt": "2026-02-16T23:19:07.313Z",
       "updatedAt": "2026-02-16T23:19:07.313Z"
+    },
+    "meme-factory": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/softaworks/agent-toolkit.git",
+      "skillPath": "skills/meme-factory/SKILL.md",
+      "skillFolderHash": "354fdb0858dec6339372dfeb5e3ea8db66c05df7",
+      "installedAt": "2026-02-27T12:47:52.299Z",
+      "updatedAt": "2026-02-27T12:47:52.299Z"
     }
   },
   "dismissed": {
@@ -52,7 +61,9 @@
   },
   "lastSelectedAgents": [
     "amp",
+    "cline",
     "codex",
+    "cursor",
     "gemini-cli",
     "github-copilot",
     "kimi-cli",
