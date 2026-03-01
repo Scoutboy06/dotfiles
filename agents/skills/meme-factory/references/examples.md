@@ -40,6 +40,36 @@ Here's a success meme:
 ![Tests Passing](https://api.memegen.link/images/success/all_tests_passing/on_the_first_try.png)
 ```
 
+### Example 4: Distracted Boyfriend/Girlfriend (3 labels)
+
+**Request:**
+"Make a distracted boyfriend meme where the girlfriend is ChatGPT and the other girl is Claude"
+
+**Response:**
+```
+![Distracted Boyfriend](https://api.memegen.link/images/db/chatgpt/me/claude.png)
+```
+
+**Variant (distracted girlfriend):**
+```
+![Distracted Girlfriend](https://api.memegen.link/images/dg/chatgpt/me/claude.png)
+```
+
+### Example 4: Distracted Boyfriend/Girlfriend (3 labels)
+
+**Request:**
+"Make a distracted boyfriend meme where the girlfriend is ChatGPT and the other girl is Claude"
+
+**Response:**
+```
+![Distracted Boyfriend](https://api.memegen.link/images/db/chatgpt/me/claude.png)
+```
+
+**Variant (distracted girlfriend):**
+```
+![Distracted Girlfriend](https://api.memegen.link/images/dg/chatgpt/me/claude.png)
+```
+
 ## Programming Examples
 
 ### Python Script Example
