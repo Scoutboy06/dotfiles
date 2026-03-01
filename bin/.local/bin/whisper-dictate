@@ -8,52 +8,132 @@ TEXT="$TMPDIR/text.txt"
 
 mkdir -p "$TMPDIR"
 
+usage() {
+  cat <<'EOF'
+Usage:
+  whisper-dictate start
+  whisper-dictate stop
+  whisper-dictate status [--waybar]
+
+Notes:
+  - "running" means the background sox recording process is alive.
+  - "stop" stops recording, then transcribes and types the result.
+EOF
+}
+
+pid_is_running() {
+  local pid="$1"
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+recording_pid() {
+  [[ -f "$PIDFILE" ]] || return 1
+  # shellcheck disable=SC2002
+  cat "$PIDFILE" 2>/dev/null | tr -d '[:space:]'
+}
+
+is_recording() {
+  local pid
+  pid="$(recording_pid 2>/dev/null || true)"
+  [[ -n "$pid" ]] && pid_is_running "$pid"
+}
+
+waybar_status() {
+  if is_recording; then
+    printf '{"text":"󰍬","class":"active","tooltip":"Whisper dictate: recording\\nClick to stop"}\n'
+  else
+    printf '{"text":"","class":"inactive","tooltip":""}\n'
+  fi
+}
+
 case "$1" in
   start)
+    if is_recording; then
+      echo "Already recording" >&2
+      exit 0
+    fi
     sox --buffer 256 -d "$AUDIO" rate 16000 channels 1 &
     echo $! > "$PIDFILE"
-    echo "DEBUG: Just wrote to $PIDFILE"
-    ls -l "$PIDFILE"  # Add this
-
     if [ -f "$PIDFILE" ]; then
-        echo "Started sox with PID $(cat $PIDFILE)"
+      echo "Started sox with PID $(cat "$PIDFILE")"
     else
-        echo "Error: Failed to create PID file at $PIDFILE"
+      echo "Error: Failed to create PID file at $PIDFILE" >&2
+      exit 1
     fi
     ;;
   stop)
-    if [ -f "$PIDFILE" ]; then
-        PID=$(cat "$PIDFILE")
-
-        sleep 3
-        
-        # 1. Send SIGINT (2) instead of a hard kill
-        kill -2 "$PID" 2>/dev/null
-        
-        # 2. Wait for the process to actually exit
-        # This ensures the file is closed before Whisper starts
-        while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
-        
-        rm "$PIDFILE"
-        
-        # 3. Small safety buffer for disk I/O
-        sleep 0.2
-
-        if [ -f "$AUDIO" ]; then
-             whisper-cli -f "$AUDIO" \
-              -m "$MODEL" \
-              -l auto \
-              -nt \
-              -otxt \
-              -of "$TMPDIR/audio" \
-              -np
-
-            if [[ -f "$TMPDIR/audio.txt" ]]; then
-                # Clean leading spaces and type it
-                TEXT_OUT=$(sed 's/^[[:space:]]*//' "$TMPDIR/audio.txt")
-                wtype "$TEXT_OUT"
-            fi
-        fi
+    if [ ! -f "$PIDFILE" ]; then
+      exit 0
     fi
+
+    PID="$(recording_pid 2>/dev/null || true)"
+    if [[ -z "$PID" ]]; then
+      rm -f "$PIDFILE"
+      exit 0
+    fi
+
+    # If PID is stale, clean up and stop.
+    if ! pid_is_running "$PID"; then
+      rm -f "$PIDFILE"
+      exit 0
+    fi
+
+    sleep 3
+
+    # 1. Send SIGINT (2) instead of a hard kill
+    kill -2 "$PID" 2>/dev/null || true
+
+    # 2. Wait for the process to actually exit
+    # This ensures the file is closed before Whisper starts
+    while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
+
+    rm -f "$PIDFILE"
+
+    # 3. Small safety buffer for disk I/O
+    sleep 0.2
+
+    if [ -f "$AUDIO" ]; then
+      whisper-cli -f "$AUDIO" \
+        -m "$MODEL" \
+        -l auto \
+        -nt \
+        -otxt \
+        -of "$TMPDIR/audio" \
+        -np
+
+      if [[ -f "$TMPDIR/audio.txt" ]]; then
+        # Clean leading spaces and type it
+        TEXT_OUT=$(sed 's/^[[:space:]]*//' "$TMPDIR/audio.txt")
+        wtype "$TEXT_OUT"
+      fi
+    fi
+    ;;
+  status)
+    case "${2-}" in
+      --waybar|--json)
+        waybar_status
+        ;;
+      "")
+        if is_recording; then
+          echo "running"
+          exit 0
+        else
+          echo "stopped"
+          exit 1
+        fi
+        ;;
+      *)
+        usage >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  -h|--help|help|"")
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 2
     ;;
 esac
