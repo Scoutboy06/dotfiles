@@ -1,136 +1,157 @@
 # Agents Guide (dotfiles)
 
-This repository is a small, pragmatic dotfiles setup. There is no full build
-system, no dedicated test runner, and no repo-wide lint config checked in.
-Most changes are to:
+This is a small, pragmatic dotfiles repository. There is no full build system
+and no pinned test/lint toolchain; most changes are scripts and config files.
 
-- `install.py` (Python installer / module registry)
-- `bin/.local/bin/*` (small CLI utilities, currently Python)
+Primary areas:
+
+- `install.py` (Python installer / module registry; wraps GNU Stow)
+- `bin/.local/bin/*` (small CLI tools; mostly Python and bash)
 - `*.sh` (shell scripts)
-- `hypr/**`, `waybar/**`, `OpenTabletDriver/**` (config/assets)
+- `hypr/**`, `waybar/**`, `OpenTabletDriver/**`, `omarchy/**` (config/assets)
 
-Cursor rules (`.cursor/rules/`, `.cursorrules`) and Copilot rules
-(`.github/copilot-instructions.md`) are not present in this repo at the time of
-writing.
+Cursor/Copilot rules:
 
-## Common Commands
+- No `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md`
+  found in this repo at the time of writing. If these appear later, treat them
+  as higher-priority repo instructions and update this document.
 
-### Install / list modules
+## Build / Lint / Test
 
-- List configs + modules:
-  - `./install.py --list`
-- Dry-run install (prints actions, does not write):
-  - `./install.py omarchy --dry-run --verbose`
-- Install a config:
-  - `./install.py omarchy`
-- Install a single module (repeat `--only` for more):
-  - `./install.py --only waybar --dry-run --verbose`
-- Restow after reorganizing files:
-  - `./install.py omarchy --restow`
+There is no formal test runner. Treat these commands as the repo's "smoke
+checks" and "single test" equivalents.
+
+Installer / Stow workflow:
+
+- List configs + modules: `./install.py --list`
+- Dry-run a full config install: `./install.py omarchy --dry-run --verbose`
+- Install a config (writes symlinks): `./install.py omarchy`
+- Run a single module (repeat `--only`): `./install.py --only waybar --dry-run --verbose`
+- Restow after moving files: `./install.py omarchy --restow`
 
 Notes:
 
-- Stow-based modules require GNU Stow (`stow`) on PATH.
-- `stow` refuses to overwrite existing targets for safety.
+- Stow-based modules require `stow` on PATH.
+- Stow refuses to overwrite existing targets; do not weaken safety checks.
 
-### Smoke checks (what passes for “tests” here)
+Python checks:
 
-There is no `pytest`/`unittest` suite checked in. Use these lightweight checks
-after edits:
-
-- Validate Python parses/compiles:
-  - `python3 -m compileall -q .`
-- Run script help to ensure argument parsing still works:
+- Fast parse/bytecode check (repo-wide): `python3 -m compileall -q .`
+- "Single test" for a script: run its smallest useful invocation, typically
+  `--help` or a minimal input file:
   - `python3 bin/.local/bin/csvcut --help`
+  - `python3 bin/.local/bin/md-convert --help`
   - `./install.py --help`
-  - `./eduroam_setup.sh --help`
-- If you touched `eduroam_setup.sh`, ensure dry-run output works:
-  - `./eduroam_setup.sh --dry-run`
 
-### Lint / format (optional but recommended)
+Shell checks:
 
-No linters are pinned in-repo. If you have these tools locally:
+- Syntax-only: `bash -n eduroam_setup.sh check-status.sh check-agents-sync.sh`
+- "Single test" for a shell script:
+  - `./eduroam_setup.sh --dry-run` (prints profile; does not require root)
+  - `./check-agents-sync.sh` (no output on success; may notify via `notify-send`)
 
-- Python (recommended):
-  - `ruff check .`
-  - `ruff format .`
-- Shell (recommended):
-  - `shellcheck check-status.sh eduroam_setup.sh`
+Optional lint/format (if installed locally):
 
-### “Single test” equivalents
+- Python: `ruff check .` and `ruff format .`
+- Shell: `shellcheck eduroam_setup.sh check-status.sh check-agents-sync.sh`
 
-Since there is no test runner, the closest single-test workflow is:
+Practical "single test" patterns (no harness):
 
-- For a Python function/script: run the smallest CLI invocation that covers it
-  (usually `--help` or a minimal input file).
-- For installer logic: `./install.py --only <module> --dry-run --verbose`.
+- Installer logic: `./install.py --only <module_id> --dry-run --verbose`
+- A CLI change: run `--help` and one minimal "happy path" invocation
+- A config change: run the owning app only if you already use it (Hyprland,
+  Waybar, etc.); otherwise keep diffs minimal and avoid speculative rewrites
 
 ## Code Style
 
 ### General
 
-- Keep changes small and local; this is a personal dotfiles repo.
-- Prefer safe, reversible operations (dry-run flags, no overwrites).
-- Avoid introducing non-ASCII unless the file already uses it.
-- Do not add repo-wide frameworks/tooling unless clearly necessary.
+- Keep changes small and local; avoid repo-wide refactors.
+- Prefer safe, reversible operations (dry-run flags; no overwrites).
+- Default to ASCII in new/edited files unless the file already uses Unicode.
+- Do not add heavy new tooling (formatters/linters/build systems) unless
+  clearly justified and documented here.
 
-### Python (`install.py`, `scripts/csvcut`)
+### Python
 
-Formatting / structure (match existing files):
+This repo's Python scripts are standalone CLIs (see `install.py` and
+`bin/.local/bin/csvcut`). Match existing patterns.
 
-- Target runtime: `python3` (currently Python 3.13).
+Structure:
+
 - Use `from __future__ import annotations`.
-- Prefer `pathlib.Path` over string paths.
-- Prefer explicit types on public functions and key locals.
-- Use dataclasses for simple immutable records (`@dataclass(frozen=True)`).
-- Keep I/O at the edges; keep pure helpers small and testable.
+- Prefer a `main(argv: list[str]) -> int` and `raise SystemExit(main(...))`.
+- Keep parsing in `parse_args()` and keep I/O at the edges.
+- Prefer small, pure helper functions that are easy to exercise via CLI.
 
 Imports:
 
-- Standard library first; no third-party imports unless justified.
-- Order: `__future__`, stdlib imports, then local imports.
+- Standard library only by default; add third-party deps only when necessary.
+- Import order: `__future__`, then stdlib, then local imports.
+- Prefer `pathlib.Path` over string paths.
+
+Types and data:
+
+- Use built-in generics: `list[str]`, `dict[str, ...]`, `str | None`.
+- Add explicit types on public functions and non-trivial locals.
+- Use `@dataclass(frozen=True)` for simple records (see `install.py`).
+
+Formatting:
+
+- Keep lines readable; follow the existing style (similar to Black/Ruff).
+- Prefer f-strings; avoid overly clever one-liners.
 
 Naming:
 
-- `snake_case` for functions/vars, `PascalCase` for classes.
-- Favor descriptive names over abbreviations (except common ones like `src`).
+- `snake_case` for functions/vars, `PascalCase` for types/classes.
+- Be descriptive; abbreviate only common terms (`src`, `dst`, `tmp`).
 
-Error handling:
+Error handling and exits:
 
 - Fail fast with clear messages.
-- CLI scripts should:
-  - print errors to stderr
-  - return non-zero exit codes (e.g. `return 2` for usage/data errors)
-- Prefer `subprocess.run(..., check=True)` when invoking commands.
+- For CLIs:
+  - print errors to stderr (`print(..., file=sys.stderr)`)
+  - return non-zero exit codes; use `2` for usage/data errors when appropriate
+- Prefer `subprocess.run(..., check=True)` and bubble up failures.
 
-### Shell (`*.sh`)
+### Shell (bash)
 
-- Use `#!/usr/bin/env bash`.
-- Prefer strict mode for non-trivial scripts: `set -euo pipefail`.
-- Quote variables and paths: `"$var"`.
-- Prefer small helper functions (`usage`, `die`, `require_root`).
-- Treat secrets carefully:
-  - use `read -s` for passwords
-  - avoid echoing secrets
-  - use restrictive permissions (`umask 077`, `install -m 600`)
+New non-trivial scripts should use the safer baseline:
 
-### Config files (`hypr/**`, `waybar/**`, `OpenTabletDriver/**`)
+- Shebang: `#!/usr/bin/env bash`
+- Strict mode: `set -euo pipefail`
+- Quote variables and paths: `"$var"`
+- Prefer `printf` over `echo` for predictable output
+
+CLI patterns:
+
+- Provide `usage` and `die` helpers.
+- Validate inputs; reject multi-line values when writing config files.
+- For scripts writing secrets/configs:
+  - use `read -s` for secrets
+  - use `umask 077` and restrictive modes (`install -m 600`)
+  - avoid printing secrets in dry-run output
+
+When editing existing scripts, keep behavior stable even if they don't fully
+follow the baseline (e.g. `check-status.sh` is intentionally small).
+
+### Config files
 
 - Preserve upstream conventions and formatting; keep diffs minimal.
-- For Hyprland configs: keep comments accurate and avoid reflowing lines.
-- For CSS: follow existing formatting; avoid large, unrelated refactors.
+- Hyprland: avoid reflowing lines; keep comments accurate.
+- Waybar CSS: keep changes scoped; avoid unrelated reformatting.
 
 ## Security / Safety
 
-- Do not commit credentials, tokens, or private keys.
-- Be careful with scripts that run as root (`eduroam_setup.sh`).
-- `install.py` intentionally refuses to overwrite existing targets; do not
-  weaken those checks without a compelling reason.
+- Never commit credentials, tokens, private keys, or machine-specific secrets.
+- Treat `eduroam_setup.sh` as security-sensitive (writes config under `/var`).
+- `install.py` is designed to be non-destructive; do not add overwrite behavior
+  without a compelling reason.
 
-## Adding New Tooling
+## Working With This Repo
 
-If you add lint/test tooling, keep it:
-
-- opt-in (does not break existing workflows)
-- documented here (update commands above)
-- scoped (avoid heavyweight monorepo setups for a small dotfiles repo)
+- Prefer dry-runs (`./install.py ... --dry-run --verbose`) before changing the
+  live `$HOME` target tree.
+- If you need to validate changes, pick the narrowest check that exercises the
+  code path you touched ("single test" mindset).
+- If you add new commands/workflows, update this file.
