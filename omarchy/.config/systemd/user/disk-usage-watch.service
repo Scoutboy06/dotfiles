@@ -1,0 +1,9 @@
+[Unit]
+Description=Disk usage watcher (notify when / is full)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/disk-usage-watch
+
+# Ensure notify-send can reach the user bus when started by a timer.
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
