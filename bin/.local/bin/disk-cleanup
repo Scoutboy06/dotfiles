@@ -1,0 +1,907 @@
+#!/usr/bin/env python3
+"""Interactive disk cleanup runner.
+
+This turns a set of common cleanup commands (caches, logs, package archives)
+into a reusable, selectable, fail-fast script.
+"""
+
+from __future__ import annotations
+
+import argparse
+import curses
+import datetime as _dt
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Iterable
+
+
+MiB = 1024 * 1024
+
+
+def cache_dir() -> Path:
+    xdg = os.environ.get("XDG_CACHE_HOME")
+    if xdg:
+        return Path(xdg)
+    return Path.home() / ".cache"
+
+
+def fmt_bytes(n: int | None) -> str:
+    if n is None:
+        return "n/a"
+    if n < 0:
+        n = 0
+    units = ["B", "KiB", "MiB", "GiB", "TiB"]
+    v = float(n)
+    u = 0
+    while v >= 1024.0 and u < len(units) - 1:
+        v /= 1024.0
+        u += 1
+    if u == 0:
+        return f"{int(v)}{units[u]}"
+    return f"{v:.1f}{units[u]}"
+
+
+@dataclass(frozen=True)
+class Estimate:
+    bytes: int | None
+    note: str = ""
+
+
+def fmt_estimate(est: Estimate | None) -> str:
+    if est is None or est.bytes is None:
+        if est is None or not est.note:
+            return "n/a"
+        return f"n/a ({est.note})"
+    if est.note:
+        return f"{fmt_bytes(est.bytes)} ({est.note})"
+    return fmt_bytes(est.bytes)
+
+
+class PatchError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class Patch:
+    patch_id: str
+    title: str
+    description: str
+    requires: tuple[str, ...]
+    run: Callable[["Context"], None]
+    measure: Callable[["Context"], int | None] | None = None
+    estimate: Callable[["Context"], Estimate] | None = None
+
+
+@dataclass(frozen=True)
+class PatchRun:
+    patch_id: str
+    title: str
+    ok: bool
+    saved_bytes: int | None
+    before_bytes: int | None
+    after_bytes: int | None
+    duration_s: float
+    error: str | None
+
+
+@dataclass(frozen=True)
+class Context:
+    dry_run: bool
+    yes: bool
+    report_path: Path
+    sudo_estimates: bool = False
+
+
+def run_cmd(argv: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    cp = subprocess.run(
+        argv,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if check and cp.returncode != 0:
+        stderr = (cp.stderr or "").strip()
+        stdout = (cp.stdout or "").strip()
+        msg = stderr or stdout or f"command exited with {cp.returncode}"
+        raise PatchError(f"{argv!r} failed: {msg}")
+    return cp
+
+
+def du_bytes(paths: Iterable[Path], *, sudo: bool = False) -> int:
+    du = shutil.which("du")
+    if du is None:
+        raise PatchError("missing command: du")
+
+    existing: list[Path] = [p for p in paths if p.exists()]
+    if not existing:
+        return 0
+
+    argv: list[str] = [du, "-sb", "--"] + [str(p) for p in existing]
+    if sudo:
+        argv = ["sudo", "--"] + argv
+    cp = run_cmd(argv)
+
+    total = 0
+    for line in (cp.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Format: <bytes>\t<path>
+        first = line.split(None, 1)[0]
+        try:
+            total += int(first)
+        except ValueError:
+            raise PatchError(f"failed to parse du output line: {line!r}")
+    return total
+
+
+def parse_size_to_bytes(s: str) -> int:
+    s = s.strip()
+    if not s:
+        raise PatchError("empty size")
+    num = ""
+    unit = ""
+    for ch in s:
+        if ch.isdigit() or ch == ".":
+            num += ch
+        elif ch.isspace():
+            continue
+        else:
+            unit += ch
+    if not num:
+        raise PatchError(f"failed to parse size: {s!r}")
+    try:
+        v = float(num)
+    except ValueError as e:
+        raise PatchError(f"failed to parse size number: {s!r}") from e
+
+    unit = unit.strip()
+    mult = {
+        "B": 1,
+        "K": 1024,
+        "KB": 1024,
+        "KI": 1024,
+        "KIB": 1024,
+        "M": 1024**2,
+        "MB": 1024**2,
+        "MI": 1024**2,
+        "MIB": 1024**2,
+        "G": 1024**3,
+        "GB": 1024**3,
+        "GI": 1024**3,
+        "GIB": 1024**3,
+        "T": 1024**4,
+        "TB": 1024**4,
+        "TI": 1024**4,
+        "TIB": 1024**4,
+    }
+    key = unit.upper()
+    if key == "":
+        # journalctl output usually includes a unit; but accept raw bytes.
+        return int(v)
+    if key not in mult:
+        raise PatchError(f"unknown size unit: {unit!r}")
+    return int(v * mult[key])
+
+
+def journalctl_disk_usage_bytes() -> int:
+    cp = run_cmd(["sudo", "--", "journalctl", "--disk-usage"])
+    out = (cp.stdout or "").strip()
+    # Example:
+    #   Archived and active journals take up 800.0M in the file system.
+    # We parse the first token that looks like a number+unit.
+    tokens = out.replace(".", ".").split()
+    for tok in tokens:
+        # Heuristic: token contains a digit, and ends in a letter.
+        if any(c.isdigit() for c in tok) and any(c.isalpha() for c in tok):
+            # Strip trailing punctuation.
+            tok = tok.rstrip(".\n\r\t,;:")
+            try:
+                return parse_size_to_bytes(tok)
+            except PatchError:
+                continue
+    raise PatchError(f"failed to parse journalctl --disk-usage output: {out!r}")
+
+
+def require_cmd(name: str) -> None:
+    if shutil.which(name) is None:
+        raise PatchError(f"missing command: {name}")
+
+
+def sudo_validate() -> None:
+    require_cmd("sudo")
+    run_cmd(["sudo", "-v"])
+
+
+def safe_rmtree(path: Path) -> None:
+    if not path.exists():
+        return
+    home = Path.home().resolve()
+    try:
+        rp = path.expanduser().resolve()
+    except FileNotFoundError:
+        # Broken symlink etc.
+        rp = path.expanduser().absolute()
+    if home not in rp.parents and rp != home:
+        raise PatchError(f"refusing to delete outside $HOME: {path}")
+    if rp == home:
+        raise PatchError("refusing to delete $HOME")
+    shutil.rmtree(rp)
+
+
+def ask_confirm(prompt: str) -> None:
+    print(prompt)
+    print("Type 'yes' to continue: ", end="", flush=True)
+    ans = sys.stdin.readline().strip().lower()
+    if ans != "yes":
+        raise PatchError("aborted")
+
+
+def patch_pacman_contrib_install(ctx: Context) -> None:
+    require_cmd("sudo")
+    require_cmd("pacman")
+    if ctx.dry_run:
+        return
+    run_cmd(["sudo", "--", "pacman", "-S", "--needed", "pacman-contrib"])
+
+
+def patch_paccache_keep2(ctx: Context) -> None:
+    require_cmd("sudo")
+    require_cmd("paccache")
+    if ctx.dry_run:
+        return
+    run_cmd(["sudo", "--", "paccache", "-rk2"])
+
+
+def patch_paccache_uninstalled(ctx: Context) -> None:
+    require_cmd("sudo")
+    require_cmd("paccache")
+    if ctx.dry_run:
+        return
+    run_cmd(["sudo", "--", "paccache", "-ruk0"])
+
+
+def patch_steam_caches(ctx: Context) -> None:
+    base = Path.home() / ".local/share/Steam"
+    targets = [
+        base / "steamapps/shadercache",
+        base / "appcache/httpcache",
+        base / "appcache/librarycache",
+        base / "config/htmlcache",
+        base / "depotcache",
+    ]
+    if ctx.dry_run:
+        return
+    for p in targets:
+        safe_rmtree(p)
+
+
+def patch_app_caches(ctx: Context) -> None:
+    raise PatchError("internal error: patch_app_caches is removed")
+
+
+def pnpm_store_path() -> Path | None:
+    if shutil.which("pnpm") is None:
+        return None
+    cp = run_cmd(["pnpm", "store", "path"], check=False)
+    if cp.returncode != 0:
+        return None
+    p = (cp.stdout or "").strip().splitlines()[0].strip()
+    if not p:
+        return None
+    return Path(p).expanduser()
+
+
+def npm_cache_path() -> Path | None:
+    if shutil.which("npm") is None:
+        return None
+    cp = run_cmd(["npm", "config", "get", "cache"], check=False)
+    if cp.returncode != 0:
+        return None
+    p = (cp.stdout or "").strip().splitlines()[0].strip()
+    if not p:
+        return None
+    return Path(p).expanduser()
+
+
+def measure_pnpm_store(_: Context) -> int | None:
+    p = pnpm_store_path()
+    if p is None:
+        return None
+    return du_bytes([p])
+
+
+def measure_npm_cache(_: Context) -> int | None:
+    p = npm_cache_path()
+    if p is None:
+        return None
+    return du_bytes([p])
+
+
+def patch_pnpm_store_prune(ctx: Context) -> None:
+    require_cmd("pnpm")
+    if ctx.dry_run:
+        return
+    run_cmd(["pnpm", "store", "prune"])
+
+
+def patch_npm_cache_verify(ctx: Context) -> None:
+    raise PatchError("internal error: npm-cache-verify patch removed")
+
+
+def patch_npm_cache_clean(ctx: Context) -> None:
+    require_cmd("npm")
+    if ctx.dry_run:
+        return
+    run_cmd(["npm", "cache", "clean", "--force"])
+
+
+def measure_pacman_cache(_: Context) -> int | None:
+    # Use sudo in case /var/cache/pacman/pkg is not readable.
+    return du_bytes([Path("/var/cache/pacman/pkg")], sudo=True)
+
+
+def measure_steam_caches(_: Context) -> int | None:
+    base = Path.home() / ".local/share/Steam"
+    paths = [
+        base / "steamapps/shadercache",
+        base / "appcache/httpcache",
+        base / "appcache/librarycache",
+        base / "config/htmlcache",
+        base / "depotcache",
+    ]
+    return du_bytes(paths)
+
+
+def measure_app_caches(_: Context) -> int | None:
+    raise PatchError("internal error: measure_app_caches is removed")
+
+
+def measure_path(_: Context, path: Path) -> int | None:
+    return du_bytes([path])
+
+
+def patch_delete_home_path(ctx: Context, path: Path) -> None:
+    if ctx.dry_run:
+        return
+    safe_rmtree(path)
+
+
+def estimate_delete_paths(paths: list[Path]) -> Callable[[Context], Estimate]:
+    def _est(_: Context) -> Estimate:
+        return Estimate(bytes=du_bytes(paths), note="exact")
+
+    return _est
+
+
+def estimate_pnpm_store(_: Context) -> Estimate:
+    p = pnpm_store_path()
+    if p is None:
+        return Estimate(bytes=None, note="pnpm not installed")
+    # Prune result varies; report an upper bound.
+    return Estimate(bytes=du_bytes([p]), note="up to")
+
+
+def estimate_npm_cache(_: Context) -> Estimate:
+    p = npm_cache_path()
+    if p is None:
+        return Estimate(bytes=None, note="npm not installed")
+    return Estimate(bytes=du_bytes([p]), note="likely")
+
+
+_PACCACHE_CANDIDATE_RE = re.compile(r"(?P<path>/(?:[^\s\x00]+))")
+
+
+@dataclass(frozen=True)
+class PaccacheDryRun:
+    bytes: int
+    parsed_paths: int
+    no_candidates: bool
+
+
+def paccache_dryrun_candidate_bytes(*, keep: int, uninstalled: bool) -> PaccacheDryRun:
+    sudo_validate()
+    require_cmd("paccache")
+    argv = [
+        "sudo",
+        "--",
+        "paccache",
+        "-d",
+        "--nocolor",
+        "-vv",
+        "-z",
+        f"-k{keep}",
+    ]
+    if uninstalled:
+        argv.append("-u")
+    cp = run_cmd(argv)
+    text = (cp.stdout or "") + "\n" + (cp.stderr or "")
+    no_cand = "no candidate packages found" in text.lower()
+    paths: set[Path] = set()
+    for m in _PACCACHE_CANDIDATE_RE.finditer(text):
+        p = m.group("path").rstrip(",;:)")
+        if ".pkg.tar" not in p and not p.endswith(".sig"):
+            continue
+        paths.add(Path(p))
+    total = 0
+    for p in paths:
+        try:
+            total += p.stat().st_size
+        except OSError:
+            continue
+    return PaccacheDryRun(bytes=total, parsed_paths=len(paths), no_candidates=no_cand)
+
+
+def estimate_paccache_keep2(ctx: Context) -> Estimate:
+    if not ctx.sudo_estimates:
+        return Estimate(bytes=None, note="enable sudo estimates")
+    dr = paccache_dryrun_candidate_bytes(keep=2, uninstalled=False)
+    if dr.no_candidates:
+        return Estimate(bytes=0, note="dry-run")
+    if dr.parsed_paths == 0:
+        return Estimate(bytes=None, note="dry-run (unparsed output)")
+    return Estimate(bytes=dr.bytes, note="dry-run")
+
+
+def estimate_paccache_uninstalled(ctx: Context) -> Estimate:
+    if not ctx.sudo_estimates:
+        return Estimate(bytes=None, note="enable sudo estimates")
+    dr = paccache_dryrun_candidate_bytes(keep=0, uninstalled=True)
+    if dr.no_candidates:
+        return Estimate(bytes=0, note="dry-run")
+    if dr.parsed_paths == 0:
+        return Estimate(bytes=None, note="dry-run (unparsed output)")
+    return Estimate(bytes=dr.bytes, note="dry-run")
+
+
+def estimate_journal_vacuum_200m(ctx: Context) -> Estimate:
+    if not ctx.sudo_estimates:
+        return Estimate(bytes=None, note="enable sudo estimates")
+    sudo_validate()
+    cur = journalctl_disk_usage_bytes()
+    target = 200 * MiB
+    return Estimate(bytes=max(0, cur - target), note="upper bound")
+
+
+def measure_journal(_: Context) -> int | None:
+    return journalctl_disk_usage_bytes()
+
+
+def patch_journal_vacuum(ctx: Context) -> None:
+    require_cmd("sudo")
+    require_cmd("journalctl")
+    if ctx.dry_run:
+        return
+    run_cmd(["sudo", "--", "journalctl", "--vacuum-size=200M"])
+
+
+def all_patches() -> list[Patch]:
+    return [
+        Patch(
+            patch_id="pacman-contrib-install",
+            title="Install pacman-contrib",
+            description="Installs paccache tooling used by pacman cache patches.",
+            requires=("sudo", "pacman"),
+            run=patch_pacman_contrib_install,
+            measure=None,
+            estimate=lambda _ctx: Estimate(bytes=None, note="no savings"),
+        ),
+        Patch(
+            patch_id="pacman-cache-keep-2",
+            title="Prune pacman cache (keep 2)",
+            description="Keeps only newest 2 cached versions per package.",
+            requires=("sudo", "paccache", "du"),
+            run=patch_paccache_keep2,
+            measure=measure_pacman_cache,
+            estimate=estimate_paccache_keep2,
+        ),
+        Patch(
+            patch_id="pacman-cache-uninstalled",
+            title="Prune pacman cache (uninstalled)",
+            description="Removes cached packages that are not currently installed.",
+            requires=("sudo", "paccache", "du"),
+            run=patch_paccache_uninstalled,
+            measure=measure_pacman_cache,
+            estimate=estimate_paccache_uninstalled,
+        ),
+        Patch(
+            patch_id="steam-caches",
+            title="Delete Steam caches",
+            description="Deletes shadercache/htmlcache/librarycache/depotcache/httpcache (keeps games + compatdata).",
+            requires=("du",),
+            run=patch_steam_caches,
+            measure=measure_steam_caches,
+            estimate=estimate_delete_paths(
+                [
+                    Path.home() / ".local/share/Steam/steamapps/shadercache",
+                    Path.home() / ".local/share/Steam/appcache/httpcache",
+                    Path.home() / ".local/share/Steam/appcache/librarycache",
+                    Path.home() / ".local/share/Steam/config/htmlcache",
+                    Path.home() / ".local/share/Steam/depotcache",
+                ]
+            ),
+        ),
+        Patch(
+            patch_id="cache-spotify",
+            title="Delete Spotify cache",
+            description="Deletes ~/.cache/spotify (app cache; not Flatpak-specific).",
+            requires=("du",),
+            run=lambda ctx: patch_delete_home_path(ctx, Path.home() / ".cache/spotify"),
+            measure=lambda ctx: measure_path(ctx, Path.home() / ".cache/spotify"),
+            estimate=estimate_delete_paths([Path.home() / ".cache/spotify"]),
+        ),
+        Patch(
+            patch_id="cache-brave",
+            title="Delete Brave cache",
+            description="Deletes ~/.cache/BraveSoftware (app cache; not Flatpak-specific).",
+            requires=("du",),
+            run=lambda ctx: patch_delete_home_path(ctx, Path.home() / ".cache/BraveSoftware"),
+            measure=lambda ctx: measure_path(ctx, Path.home() / ".cache/BraveSoftware"),
+            estimate=estimate_delete_paths([Path.home() / ".cache/BraveSoftware"]),
+        ),
+        Patch(
+            patch_id="cache-jetbrains",
+            title="Delete JetBrains cache",
+            description="Deletes ~/.cache/JetBrains (app cache; not Flatpak-specific).",
+            requires=("du",),
+            run=lambda ctx: patch_delete_home_path(ctx, Path.home() / ".cache/JetBrains"),
+            measure=lambda ctx: measure_path(ctx, Path.home() / ".cache/JetBrains"),
+            estimate=estimate_delete_paths([Path.home() / ".cache/JetBrains"]),
+        ),
+        Patch(
+            patch_id="pnpm-store-prune",
+            title="Prune pnpm store",
+            description="Runs: pnpm store prune",
+            requires=("pnpm", "du"),
+            run=patch_pnpm_store_prune,
+            measure=measure_pnpm_store,
+            estimate=estimate_pnpm_store,
+        ),
+        Patch(
+            patch_id="npm-cache-clean",
+            title="Clean npm cache",
+            description="Runs: npm cache clean --force",
+            requires=("npm", "du"),
+            run=patch_npm_cache_clean,
+            measure=measure_npm_cache,
+            estimate=estimate_npm_cache,
+        ),
+        Patch(
+            patch_id="journal-vacuum-200m",
+            title="Vacuum systemd journal to 200M",
+            description="Runs journalctl --vacuum-size=200M.",
+            requires=("sudo", "journalctl"),
+            run=patch_journal_vacuum,
+            measure=measure_journal,
+            estimate=estimate_journal_vacuum_200m,
+        ),
+    ]
+
+
+def preflight(patches: list[Patch]) -> None:
+    missing: list[str] = []
+    for p in patches:
+        for cmd in p.requires:
+            if shutil.which(cmd) is None:
+                missing.append(f"{p.patch_id}: missing command {cmd}")
+    if missing:
+        msg = "\n".join(missing)
+        raise PatchError(f"preflight failed:\n{msg}")
+
+
+def render_list_for_curses(
+    patches: list[Patch], selected: set[int], estimates: dict[str, Estimate]
+) -> list[str]:
+    lines: list[str] = []
+    for i, p in enumerate(patches):
+        mark = "x" if i in selected else " "
+        sudo = " (sudo)" if "sudo" in p.requires else ""
+        tail = ""
+        est = estimates.get(p.patch_id)
+        if est is not None and est.bytes is not None:
+            tail = f"  ~{fmt_bytes(est.bytes)}"
+        lines.append(f"[{mark}] {p.title}{sudo}{tail}")
+    return lines
+
+
+def curses_select(patches: list[Patch]) -> list[Patch]:
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        raise PatchError("interactive mode requires a TTY (use --only or --no-ui)")
+
+    def _inner(stdscr: "curses._CursesWindow") -> list[Patch]:
+        curses.curs_set(0)
+        stdscr.nodelay(False)
+        stdscr.keypad(True)
+
+        idx = 0
+        selected: set[int] = set()
+        top = 0
+        estimates: dict[str, Estimate] = {}
+        status = ""
+
+        ctx = Context(dry_run=True, yes=True, report_path=Path("/dev/null"), sudo_estimates=False)
+
+        while True:
+            stdscr.erase()
+            h, w = stdscr.getmaxyx()
+
+            title = "Disk cleanup"
+            help1 = "Up/Down (or j/k), Space=toggle, e=estimate, s=sudo est., Enter=run, q=quit"
+            stdscr.addnstr(0, 0, title, w - 1)
+            stdscr.addnstr(1, 0, help1, w - 1)
+
+            lines = render_list_for_curses(patches, selected, estimates)
+            max_lines = max(1, h - 6)
+            if idx >= top + max_lines:
+                top = idx - max_lines + 1
+            if idx < top:
+                top = idx
+
+            for row, line in enumerate(lines[top : top + max_lines], start=3):
+                i = top + (row - 3)
+                if i == idx:
+                    stdscr.attron(curses.A_REVERSE)
+                    stdscr.addnstr(row, 0, line, w - 1)
+                    stdscr.attroff(curses.A_REVERSE)
+                else:
+                    stdscr.addnstr(row, 0, line, w - 1)
+
+            footer = status or f"Selected: {len(selected)} | sudo estimates: {'on' if ctx.sudo_estimates else 'off'}"
+            stdscr.addnstr(h - 3, 0, footer, w - 1)
+
+            desc = patches[idx].description if patches else ""
+            stdscr.addnstr(h - 2, 0, desc, w - 1)
+
+            est = None
+            if patches:
+                est = estimates.get(patches[idx].patch_id)
+            est_line = "Est. savings: "
+            if est is None:
+                est_line += "(press 'e')"
+            else:
+                est_line += fmt_estimate(est)
+            stdscr.addnstr(h - 1, 0, est_line, w - 1)
+            stdscr.refresh()
+
+            ch = stdscr.getch()
+            if ch in (ord("q"), 27):
+                raise PatchError("aborted")
+            if ch in (curses.KEY_DOWN, ord("j")):
+                idx = min(len(patches) - 1, idx + 1)
+            elif ch in (curses.KEY_UP, ord("k")):
+                idx = max(0, idx - 1)
+            elif ch == ord(" "):
+                if idx in selected:
+                    selected.remove(idx)
+                else:
+                    selected.add(idx)
+            elif ch in (curses.KEY_ENTER, 10, 13):
+                return [patches[i] for i in sorted(selected)]
+            elif ch == ord("s"):
+                status = "Validating sudo..."
+                stdscr.addnstr(h - 3, 0, status, w - 1)
+                stdscr.refresh()
+                try:
+                    sudo_validate()
+                    ctx = Context(
+                        dry_run=True,
+                        yes=True,
+                        report_path=ctx.report_path,
+                        sudo_estimates=True,
+                    )
+                    status = "sudo estimates enabled"
+                except Exception as e:  # noqa: BLE001
+                    status = f"sudo failed: {e}"
+            elif ch == ord("e"):
+                if not patches:
+                    continue
+                p = patches[idx]
+                if p.estimate is None:
+                    estimates[p.patch_id] = Estimate(bytes=None, note="no estimate")
+                    continue
+                status = "Estimating..."
+                stdscr.addnstr(h - 3, 0, status, w - 1)
+                stdscr.refresh()
+                try:
+                    estimates[p.patch_id] = p.estimate(ctx)
+                    status = ""
+                except Exception as e:  # noqa: BLE001
+                    estimates[p.patch_id] = Estimate(bytes=None, note=str(e))
+                    status = ""
+    
+    return curses.wrapper(_inner)
+
+
+def build_report_path() -> Path:
+    ts = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    return cache_dir() / "disk-cleanup" / "runs" / f"{ts}.json"
+
+
+def write_report(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+
+def execute_selected(ctx: Context, selected: list[Patch]) -> int:
+    preflight(selected)
+
+    if not selected:
+        print("No patches selected.")
+        return 0
+
+    if not ctx.yes and not ctx.dry_run:
+        ids = ", ".join(p.patch_id for p in selected)
+        ask_confirm(f"About to run: {ids}")
+
+    runs: list[PatchRun] = []
+    started = time.time()
+
+    for p in selected:
+        t0 = time.time()
+        before = p.measure(ctx) if p.measure else None
+        try:
+            p.run(ctx)
+            after = p.measure(ctx) if p.measure else None
+            saved = None
+            if before is not None and after is not None:
+                saved = max(0, before - after)
+            dt = time.time() - t0
+            runs.append(
+                PatchRun(
+                    patch_id=p.patch_id,
+                    title=p.title,
+                    ok=True,
+                    saved_bytes=saved,
+                    before_bytes=before,
+                    after_bytes=after,
+                    duration_s=dt,
+                    error=None,
+                )
+            )
+            print(f"ok: {p.patch_id} ({p.title}) saved {fmt_bytes(saved)}")
+        except Exception as e:  # noqa: BLE001
+            dt = time.time() - t0
+            runs.append(
+                PatchRun(
+                    patch_id=p.patch_id,
+                    title=p.title,
+                    ok=False,
+                    saved_bytes=None,
+                    before_bytes=before,
+                    after_bytes=None,
+                    duration_s=dt,
+                    error=str(e),
+                )
+            )
+            print(f"error: {p.patch_id} ({p.title})", file=sys.stderr)
+            print(f"  {e}", file=sys.stderr)
+            payload = {
+                "dry_run": ctx.dry_run,
+                "started_ts": started,
+                "ended_ts": time.time(),
+                "runs": [r.__dict__ for r in runs],
+            }
+            write_report(ctx.report_path, payload)
+            print(f"wrote report: {ctx.report_path}")
+            return 1
+
+    payload = {
+        "dry_run": ctx.dry_run,
+        "started_ts": started,
+        "ended_ts": time.time(),
+        "runs": [r.__dict__ for r in runs],
+    }
+    write_report(ctx.report_path, payload)
+    print(f"wrote report: {ctx.report_path}")
+    return 0
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(prog="disk-cleanup")
+    p.add_argument("--list", action="store_true", help="List available patches")
+    p.add_argument(
+        "--preview",
+        action="store_true",
+        help="Print estimated savings for each patch (no changes)",
+    )
+    p.add_argument("--dry-run", action="store_true", help="Show what would run")
+    p.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        metavar="PATCH_ID",
+        help="Run only this patch (repeatable)",
+    )
+    p.add_argument("--yes", action="store_true", help="Skip confirmation prompt")
+    p.add_argument(
+        "--no-ui",
+        action="store_true",
+        help="Do not use curses UI (requires --only)",
+    )
+    p.add_argument(
+        "--sudo-estimates",
+        action="store_true",
+        help="Allow estimates that require sudo (may prompt)",
+    )
+    return p.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    ns = parse_args(argv)
+    patches = all_patches()
+    patch_by_id = {p.patch_id: p for p in patches}
+
+    if ns.list:
+        for p in patches:
+            print(f"{p.patch_id}\t{p.title}\t{p.description}")
+        return 0
+
+    if ns.preview:
+        ctx = Context(
+            dry_run=True,
+            yes=True,
+            report_path=build_report_path(),
+            sudo_estimates=bool(ns.sudo_estimates),
+        )
+        if ctx.sudo_estimates:
+            try:
+                sudo_validate()
+            except Exception as e:  # noqa: BLE001
+                print(f"warning: sudo estimates disabled: {e}", file=sys.stderr)
+                ctx = Context(
+                    dry_run=True,
+                    yes=True,
+                    report_path=ctx.report_path,
+                    sudo_estimates=False,
+                )
+
+        for p in patches:
+            est: Estimate | None = None
+            if p.estimate is not None:
+                try:
+                    est = p.estimate(ctx)
+                except Exception as e:  # noqa: BLE001
+                    est = Estimate(bytes=None, note=str(e))
+            print(f"{p.title}\t{fmt_estimate(est)}")
+        return 0
+
+    report_path = build_report_path()
+    ctx = Context(
+        dry_run=bool(ns.dry_run),
+        yes=bool(ns.yes),
+        report_path=report_path,
+        sudo_estimates=bool(ns.sudo_estimates),
+    )
+
+    selected: list[Patch]
+    if ns.only:
+        unknown = [x for x in ns.only if x not in patch_by_id]
+        if unknown:
+            print("error: unknown patch id(s): " + ", ".join(unknown), file=sys.stderr)
+            return 2
+        selected = [patch_by_id[x] for x in ns.only]
+    else:
+        if ns.no_ui:
+            print("error: --no-ui requires --only", file=sys.stderr)
+            return 2
+        selected = curses_select(patches)
+
+    try:
+        return execute_selected(ctx, selected)
+    except PatchError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
