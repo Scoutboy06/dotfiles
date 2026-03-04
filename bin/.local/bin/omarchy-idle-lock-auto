@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: omarchy-idle-lock-auto [--iface IFACE] [--file PATH]
+
+Automatically toggles Omarchy idle locking based on the current SSID.
+
+If connected to a trusted SSID (allowlist), hypridle is stopped (idle lock off).
+Otherwise, hypridle is started (idle lock on).
+
+Allowlist file format: one SSID per line; blank lines and lines starting with
+# are ignored.
+
+Defaults:
+  --file  ~/.config/omarchy/trusted-ssids.txt
+  --iface first interface from `iw dev`
+USAGE
+}
+
+die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+default_iface() {
+  local a b _
+  while read -r a b _; do
+    if [[ $a == "Interface" && -n $b ]]; then
+      printf '%s\n' "$b"
+      return 0
+    fi
+  done < <(iw dev 2>/dev/null || true)
+  return 1
+}
+
+current_ssid() {
+  local iface="$1"
+  local line
+
+  while IFS= read -r line; do
+    if [[ $line == *$'\tSSID: '* ]]; then
+      printf '%s\n' "${line##*$'\tSSID: '}"
+      return 0
+    fi
+    if [[ $line == SSID:\ * ]]; then
+      printf '%s\n' "${line#SSID: }"
+      return 0
+    fi
+  done < <(iw dev "$iface" link 2>/dev/null || true)
+
+  printf '%s\n' ""
+}
+
+read_allowlist_file() {
+  local file="$1"
+  [[ -r $file ]] || return 0
+
+  local line
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ -z $line ]] && continue
+    [[ $line == \#* ]] && continue
+    printf '%s\n' "$line"
+  done <"$file"
+}
+
+hyprland_is_running() {
+  # systemd --user timers don't always carry WAYLAND_DISPLAY into the unit.
+  # Detect Hyprland via its runtime sockets instead.
+  [[ -n ${XDG_RUNTIME_DIR-} ]] || return 1
+  compgen -G "$XDG_RUNTIME_DIR/hypr/*/.socket2.sock" >/dev/null
+}
+
+hypridle_is_running() {
+  pgrep -x hypridle >/dev/null
+}
+
+start_hypridle() {
+  # Match Omarchy's behavior (uwsm-app makes sure it is in the session).
+  uwsm-app -- hypridle >/dev/null 2>&1 &
+}
+
+stop_hypridle() {
+  pkill -x hypridle >/dev/null 2>&1 || true
+}
+
+refresh_waybar_idle_indicator() {
+  pkill -RTMIN+9 waybar >/dev/null 2>&1 || true
+}
+
+main() {
+  local iface=""
+  local file="$HOME/.config/omarchy/trusted-ssids.txt"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        usage
+        return 0
+        ;;
+      --iface)
+        [[ $# -ge 2 ]] || die "--iface requires a value"
+        iface="$2"
+        shift 2
+        ;;
+      --file)
+        [[ $# -ge 2 ]] || die "--file requires a value"
+        file="$2"
+        shift 2
+        ;;
+      *)
+        die "Unknown argument: $1"
+        ;;
+    esac
+  done
+
+  if ! hyprland_is_running; then
+    return 0
+  fi
+
+  if [[ -z $iface ]]; then
+    iface="$(default_iface || true)"
+  fi
+
+  local ssid
+  if [[ -n $iface ]]; then
+    ssid="$(current_ssid "$iface")"
+  else
+    ssid=""
+  fi
+
+  local allowlist=()
+  while IFS= read -r line; do
+    allowlist+=("$line")
+  done < <(read_allowlist_file "$file")
+
+  local is_safe
+  is_safe="no"
+  if [[ -n $ssid ]]; then
+    local safe
+    for safe in "${allowlist[@]}"; do
+      if [[ $ssid == "$safe" ]]; then
+        is_safe="yes"
+        break
+      fi
+    done
+  fi
+
+  local changed
+  changed="no"
+
+  if [[ $is_safe == "yes" ]]; then
+    if hypridle_is_running; then
+      stop_hypridle
+      changed="yes"
+      printf 'omarchy-idle-lock-auto: safe SSID (%s) -> stop hypridle\n' "$ssid"
+    fi
+  else
+    if ! hypridle_is_running; then
+      start_hypridle
+      changed="yes"
+      if [[ -n $ssid ]]; then
+        printf 'omarchy-idle-lock-auto: unsafe SSID (%s) -> start hypridle\n' "$ssid"
+      else
+        printf 'omarchy-idle-lock-auto: no SSID -> start hypridle\n'
+      fi
+    fi
+  fi
+
+  if [[ $changed == "yes" ]]; then
+    refresh_waybar_idle_indicator
+  fi
+}
+
+main "$@"

@@ -1,0 +1,6 @@
+# Trusted Wi-Fi networks (SSIDs)
+#
+# One SSID per line. Exact match.
+# Blank lines and lines starting with # are ignored.
+
+ASUS_AC_BD4
