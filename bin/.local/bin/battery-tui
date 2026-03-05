@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+"""Display battery information from upower in a simple TUI.
+
+Refreshes every 5 seconds and clears the screen between updates.
+Standard library only.
+"""
+
+from __future__ import annotations
+
+import re
+import shutil
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+
+
+REFRESH_SECONDS = 5
+BAR_WIDTH = 16
+
+
+@dataclass(frozen=True)
+class UPowerData:
+    device: str
+    info: dict[str, str]
+    voltage_history: list[float]
+
+
+def clear_screen() -> None:
+    sys.stdout.write("\x1b[2J\x1b[H")
+
+
+def get_upower_output() -> tuple[str, str]:
+    upower = shutil.which("upower")
+    if upower is None:
+        raise RuntimeError("missing command: upower")
+
+    cp = subprocess.run(
+        [upower, "-e"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if cp.returncode != 0:
+        msg = (cp.stderr or "").strip() or f"upower -e exited with {cp.returncode}"
+        raise RuntimeError(msg)
+
+    devices = [ln.strip() for ln in (cp.stdout or "").splitlines() if ln.strip()]
+    bat_devices = [d for d in devices if "BAT" in d]
+    if not bat_devices:
+        raise RuntimeError("no battery devices found (upower -e | grep 'BAT')")
+
+    device = bat_devices[0]
+    cp = subprocess.run(
+        [upower, "-i", device],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if cp.returncode != 0:
+        msg = (cp.stderr or "").strip() or f"upower -i exited with {cp.returncode}"
+        raise RuntimeError(msg)
+
+    return cp.stdout or "", device
+
+
+def parse_upower(output: str, device: str) -> UPowerData:
+    info: dict[str, str] = {}
+    voltage_history: list[float] = []
+
+    in_voltage_history = False
+    for raw in (output or "").splitlines():
+        line = raw.rstrip("\n")
+        stripped = line.strip()
+        low = stripped.lower()
+
+        if low.startswith("history ("):
+            in_voltage_history = low.startswith("history (voltage")
+            continue
+
+        if in_voltage_history:
+            if not stripped:
+                continue
+            parts = stripped.split()
+            if len(parts) >= 2:
+                try:
+                    voltage_history.append(float(parts[1]))
+                except ValueError:
+                    pass
+            continue
+
+        m = re.match(r"^\s*(?P<k>[A-Za-z0-9-]+):\s*(?P<v>.*)$", line)
+        if not m:
+            continue
+        key = (m.group("k") or "").strip().lower()
+        val = (m.group("v") or "").strip()
+        if key:
+            info[key] = val
+
+    return UPowerData(device=device, info=info, voltage_history=voltage_history)
+
+
+def battery_name(device: str, info: dict[str, str]) -> str:
+    native = (info.get("native-path") or "").strip()
+    if native:
+        return native
+
+    base = device.rsplit("/", 1)[-1]
+    # Common form: battery_BAT0
+    m = re.search(r"battery_(?P<n>[A-Za-z0-9]+)", base)
+    if m:
+        return m.group("n")
+    if base:
+        return base
+    return "BAT"
+
+
+def parse_percent(raw: str | None) -> int | None:
+    if not raw:
+        return None
+    s = raw.strip().rstrip("%")
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    v = max(0.0, min(100.0, v))
+    return int(round(v))
+
+
+def render_bar(percentage: int | None, width: int = BAR_WIDTH) -> str:
+    if percentage is None:
+        return "[" + ("?" * width) + "]"
+    pct = max(0, min(100, percentage))
+    filled = int((pct / 100.0) * width + 1e-9)
+    filled = max(0, min(width, filled))
+    return "[" + ("█" * filled) + ("░" * (width - filled)) + "]"
+
+
+def render_voltage_sparkline(values: list[float], max_len: int) -> str:
+    if not values or max_len <= 0:
+        return "-"
+    chars = "▁▂▃▄▅▆▇█"
+
+    sample = values[-max_len:]
+    lo = min(sample)
+    hi = max(sample)
+    if hi == lo:
+        return chars[-1] * len(sample)
+
+    out: list[str] = []
+    span = hi - lo
+    for v in sample:
+        t = (v - lo) / span
+        idx = int(round(t * (len(chars) - 1)))
+        idx = max(0, min(len(chars) - 1, idx))
+        out.append(chars[idx])
+    return "".join(out)
+
+
+def _fit(text: str, width: int) -> str:
+    if width <= 0:
+        return ""
+    if len(text) <= width:
+        return text + (" " * (width - len(text)))
+    if width <= 1:
+        return text[:width]
+    # Keep ASCII-only truncation marker.
+    if width <= 3:
+        return text[:width]
+    return text[: width - 3] + "..."
+
+
+def _kv(info: dict[str, str], key: str, default: str = "-") -> str:
+    v = (info.get(key) or "").strip()
+    return v if v else default
+
+
+def render_ui(data: UPowerData, term_width: int) -> str:
+    # Keep the layout compact and left-aligned.
+    w = max(40, min(term_width, 72))
+    prefix = ""
+    inner = w - 2
+
+    name = battery_name(data.device, data.info)
+    title = f" Battery: {name} "
+    if len(title) > inner:
+        title = title[:inner]
+    left_fill = max(0, (inner - len(title)) // 2)
+    right_fill = max(0, inner - len(title) - left_fill)
+    top = "┌" + ("─" * left_fill) + title + ("─" * right_fill) + "┐"
+
+    def box_line(text: str) -> str:
+        return "│ " + _fit(text, inner - 2) + " │"
+
+    box = [
+        top,
+        box_line(f"Model: {_kv(data.info, 'model')}"),
+        box_line(f"Serial: {_kv(data.info, 'serial')}"),
+        box_line(f"Technology: {_kv(data.info, 'technology')}"),
+        box_line(f"Charge Cycles: {_kv(data.info, 'charge-cycles')}"),
+        "└" + ("─" * inner) + "┘",
+        "",
+    ]
+
+    sep = "─" * w
+    label_w = 16
+    gap = " "
+
+    pct_raw = data.info.get("percentage")
+    pct_num = parse_percent(pct_raw)
+    pct_disp = _kv(data.info, "percentage")
+    bar = render_bar(pct_num, BAR_WIDTH)
+
+    def row(label: str, value: str) -> str:
+        lab = (label + ":").ljust(label_w)
+        return _fit(f"{lab}{gap}{value}", w)
+
+    status = [
+        "Status",
+        sep,
+        row("State", _kv(data.info, "state")),
+        row("Percentage", f"{pct_disp:<4}  {bar}"),
+        row("Capacity Health", _kv(data.info, "capacity")),
+        row("Capacity Level", _kv(data.info, "capacity-level")),
+        row("Power Draw", _kv(data.info, "energy-rate")),
+        row("Voltage", _kv(data.info, "voltage")),
+        "",
+    ]
+
+    energy = [
+        "Energy",
+        sep,
+        row("Current Energy", _kv(data.info, "energy")),
+        row("Full Energy", _kv(data.info, "energy-full")),
+        row("Design Capacity", _kv(data.info, "energy-full-design")),
+        row("Empty", _kv(data.info, "energy-empty")),
+        "",
+    ]
+
+    design = [
+        "Design Specs",
+        sep,
+        row("Minimum Voltage", _kv(data.info, "voltage-min-design")),
+        "",
+    ]
+
+    hist_label = "Voltage trend: "
+    spark_max = max(1, w - len(hist_label))
+    spark = render_voltage_sparkline(data.voltage_history, spark_max)
+    history = [
+        "History",
+        sep,
+        _fit(hist_label + spark, w),
+    ]
+
+    lines = box + status + energy + design + history
+    return "\n".join(prefix + ln for ln in lines)
+
+
+def render_error(message: str, term_width: int) -> str:
+    w = max(40, min(term_width, 72))
+    prefix = ""
+    inner = w - 2
+
+    title = " Battery TUI "
+    left_fill = max(0, (inner - len(title)) // 2)
+    right_fill = max(0, inner - len(title) - left_fill)
+    top = "┌" + ("─" * left_fill) + title + ("─" * right_fill) + "┐"
+    bot = "└" + ("─" * inner) + "┘"
+
+    msg = (message or "error").strip()
+    msg = msg.replace("\n", " ")
+    body = "│ " + _fit("Error: " + msg, inner - 2) + " │"
+    hint = "│ " + _fit("Ctrl+C to exit; retrying...", inner - 2) + " │"
+    return "\n".join(prefix + ln for ln in [top, body, hint, bot])
+
+
+def main(argv: list[str]) -> int:
+    if argv:
+        print("error: no arguments supported", file=sys.stderr)
+        return 2
+
+    try:
+        while True:
+            term = shutil.get_terminal_size(fallback=(80, 24))
+            clear_screen()
+            try:
+                out, device = get_upower_output()
+                data = parse_upower(out, device)
+                sys.stdout.write(render_ui(data, term.columns) + "\n")
+            except Exception as e:  # noqa: BLE001 - show error in UI
+                sys.stdout.write(render_error(str(e), term.columns) + "\n")
+            sys.stdout.flush()
+            time.sleep(REFRESH_SECONDS)
+    except KeyboardInterrupt:
+        clear_screen()
+        return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
