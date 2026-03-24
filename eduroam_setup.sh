@@ -151,6 +151,7 @@ main() {
       printf 'EAP-PEAP-Phase2-Identity=%s@%s\n' "$cid" "$REALM"
       printf '\n[Settings]\n'
       printf 'AutoConnect=true\n'
+      printf 'AddressRandomization=disabled\n'
       printf '\n[@pem@eduroam_ca_cert]\n'
       cat "$cert_path"
     }
@@ -175,6 +176,7 @@ main() {
     fi
     printf '\n[Settings]\n'
     printf 'AutoConnect=true\n'
+    printf 'AddressRandomization=disabled\n'
     printf '\n[@pem@eduroam_ca_cert]\n'
     cat "$cert_path"
   } >"$tmp"
