@@ -58,6 +58,7 @@ Notes:
 - `check-status.sh`: shows a desktop notification if this repo has uncommitted changes.
 - `bin/.local/bin/csvcut`: small helper CLI installed to `~/.local/bin/csvcut` by `install.py`.
 - `bin/.local/bin/md-convert`: recursively convert `.html` files to Markdown (requires `markdownify`).
+- `bin/.local/bin/snapper-cleanup`: aggressively cleans up Btrfs snapshots and reconfigures Snapper limits to prevent disk bloat. Over time, snapshots created by Omarchy on system updates can consume 50-100GB+. This script deletes old snapshots (keeping only the most recent for rollback), reduces `SPACE_LIMIT` from 30% to 10%, and limits retention to 1 snapshot per config. Usage: `sudo snapper-cleanup` (requires root and `snapper` installed).
 
 ## Project structure
 
