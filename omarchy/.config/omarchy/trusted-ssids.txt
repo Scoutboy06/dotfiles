@@ -4,3 +4,8 @@
 # Blank lines and lines starting with # are ignored.
 
 ASUS_AC_BD4
+Bahnhof-5G-3NLKXJ
+Bahnhof-2.4G-3NLKXJ
+Grindstugan2
+Grindstugan2-5GHz
+
