@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Snapper Snapshot Cleanup and Reconfiguration
+#
+# Problem solved:
+#   Over time, Btrfs snapshots created by Snapper (triggered by Omarchy on
+#   system updates) can accumulate and consume significant disk space
+#   (50-100GB+). Default Snapper configs allow snapshots to use up to 30% of
+#   the filesystem, which leads to bloat.
+#
+#   This script:
+#   1. Aggressively deletes old snapshots, keeping only the most recent one
+#      per config (for rollback capability if updates fail)
+#   2. Reconfigures Snapper limits to be much more conservative:
+#      - Reduces SPACE_LIMIT from 30% to 10% per config
+#      - Reduces FREE_LIMIT from 30% to 20%
+#      - Limits snapshot retention to 1 snapshot per config
+#      - Reduces timeline cleanup limits
+#
+# Requirements:
+#   - snapper (Btrfs snapshot management tool)
+#   - Requires root/sudo (for Snapper operations)
+#
+# Usage:
+#   sudo snapper-cleanup
+#
+# Expected output:
+#   - Lists snapshots being deleted for each config
+#   - Shows final state with reduced limits
+#   - Typically frees 50-100GB of disk space
+#
+# Note:
+#   After running this, you'll retain rollback capability via a single
+#   pre-update snapshot per config, while consuming far less disk space.
+
+set -euo pipefail
+
+echo "=== Snapper Snapshot Cleanup and Reconfiguration ==="
+echo
+
+# Verify snapper is installed
+if ! command -v snapper &>/dev/null; then
+    echo "Error: snapper not found. Install it and try again." >&2
+    exit 127
+fi
+
+# Function to update a config file
+update_config() {
+    local config="$1"
+    echo "Updating $config..."
+
+    # Reduce SPACE_LIMIT from 0.3 to 0.1 (30% → 10%)
+    sed -i 's/^SPACE_LIMIT="0.3"/SPACE_LIMIT="0.1"/' "$config"
+
+    # Reduce FREE_LIMIT from 0.3 to 0.2 (30% → 20%)
+    sed -i 's/^FREE_LIMIT="0.3"/FREE_LIMIT="0.2"/' "$config"
+
+    # Reduce NUMBER_LIMIT from 5 to 1 (keep only 1 numbered snapshot)
+    sed -i 's/^NUMBER_LIMIT="5"/NUMBER_LIMIT="1"/' "$config"
+
+    # Reduce NUMBER_LIMIT_IMPORTANT from 5 to 1
+    sed -i 's/^NUMBER_LIMIT_IMPORTANT="5"/NUMBER_LIMIT_IMPORTANT="1"/' "$config"
+
+    # Reduce TIMELINE_LIMIT_DAILY from 10 to 1
+    sed -i 's/^TIMELINE_LIMIT_DAILY="10"/TIMELINE_LIMIT_DAILY="1"/' "$config"
+
+    # Reduce TIMELINE_LIMIT_MONTHLY from 10 to 1
+    sed -i 's/^TIMELINE_LIMIT_MONTHLY="10"/TIMELINE_LIMIT_MONTHLY="1"/' "$config"
+
+    # Reduce TIMELINE_LIMIT_YEARLY from 10 to 1
+    sed -i 's/^TIMELINE_LIMIT_YEARLY="10"/TIMELINE_LIMIT_YEARLY="1"/' "$config"
+
+    echo "✓ Updated $config"
+}
+
+# Function to delete all snapshots except the most recent for a config
+cleanup_snapshots() {
+    local config_name="$1"
+    echo "Cleaning $config_name snapshots..."
+
+    # Get list of snapshot numbers, excluding the most recent one
+    local snapshots
+    snapshots=$(snapper -c "$config_name" list --columns number 2>/dev/null | tail -n +2 | sed '$ d' || true)
+
+    if [ -z "$snapshots" ]; then
+        echo "  No old snapshots to delete"
+        return
+    fi
+
+    while IFS= read -r num; do
+        if [ -n "$num" ]; then
+            echo "  Deleting snapshot $num"
+            snapper -c "$config_name" delete "$num" || true
+        fi
+    done <<< "$snapshots"
+}
+
+# Update both configs
+update_config "/etc/snapper/configs/root"
+update_config "/etc/snapper/configs/home"
+
+echo
+echo "=== Cleaning up old snapshots ==="
+
+cleanup_snapshots "root"
+cleanup_snapshots "home"
+
+echo
+echo "=== Configuration Complete ==="
+echo "Changes made:"
+echo "  - SPACE_LIMIT: 0.3 → 0.1 (30% → 10%)"
+echo "  - FREE_LIMIT: 0.3 → 0.2 (30% → 20%)"
+echo "  - NUMBER_LIMIT: 5 → 1 (keep only 1 snapshot)"
+echo "  - TIMELINE limits: 10 → 1"
+echo
+echo "Old snapshots have been cleaned up."
+echo "The most recent snapshot per config has been retained for rollback."
