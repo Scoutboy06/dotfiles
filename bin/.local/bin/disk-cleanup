@@ -258,7 +258,8 @@ def patch_paccache_keep2(ctx: Context) -> None:
     require_cmd("paccache")
     if ctx.dry_run:
         return
-    run_cmd(["sudo", "--", "paccache", "-rk2"])
+    run_cmd(["sudo", "--", "paccache", "-rk0"])
+    run_cmd(["sudo", "--", "paccache", "-ruk0"])
 
 
 def patch_paccache_uninstalled(ctx: Context) -> None:
@@ -342,6 +343,205 @@ def patch_npm_cache_clean(ctx: Context) -> None:
     if ctx.dry_run:
         return
     run_cmd(["npm", "cache", "clean", "--force"])
+
+
+def _docker_system_df_rows() -> list[dict[str, str]]:
+    docker = shutil.which("docker")
+    if docker is None:
+        raise PatchError("missing command: docker")
+
+    cp = run_cmd([docker, "system", "df", "--format", "json"], check=False)
+    if cp.returncode != 0:
+        stderr = (cp.stderr or "").strip()
+        stdout = (cp.stdout or "").strip()
+        msg = stderr or stdout or f"docker exited with {cp.returncode}"
+        raise PatchError(f"docker system df failed: {msg}")
+
+    rows: list[dict[str, str]] = []
+    for line in (cp.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except ValueError as e:
+            raise PatchError(
+                f"failed to parse docker system df JSON line: {line!r}"
+            ) from e
+        if not isinstance(obj, dict):
+            raise PatchError(f"unexpected docker system df JSON: {obj!r}")
+        # Normalize to str->str.
+        row: dict[str, str] = {}
+        for k, v in obj.items():
+            if isinstance(k, str):
+                row[k] = str(v)
+        rows.append(row)
+
+    if not rows:
+        raise PatchError("docker system df returned no rows")
+    return rows
+
+
+def _docker_df_row(type_name: str) -> dict[str, str] | None:
+    for row in _docker_system_df_rows():
+        if row.get("Type") == type_name:
+            return row
+    return None
+
+
+def _docker_parse_size_token_bytes(token: str) -> int:
+    token = token.strip()
+    if not token:
+        raise PatchError("empty docker size")
+    return parse_size_to_bytes(token)
+
+
+def _docker_parse_reclaimable_bytes(raw: str) -> int:
+    raw = (raw or "").strip()
+    if not raw:
+        return 0
+    # Example: "6.963GB (47%)" or "28.62MB".
+    token = raw.split()[0].strip()
+    return _docker_parse_size_token_bytes(token)
+
+
+def docker_df_type_size_bytes(type_name: str) -> int | None:
+    row = _docker_df_row(type_name)
+    if row is None:
+        return None
+    return _docker_parse_size_token_bytes(row.get("Size", ""))
+
+
+def docker_df_type_reclaimable_bytes(type_name: str) -> int | None:
+    row = _docker_df_row(type_name)
+    if row is None:
+        return None
+    return _docker_parse_reclaimable_bytes(row.get("Reclaimable", ""))
+
+
+def docker_df_total_size_bytes() -> int | None:
+    total = 0
+    saw = False
+    for row in _docker_system_df_rows():
+        if "Size" not in row:
+            continue
+        total += _docker_parse_size_token_bytes(row.get("Size", ""))
+        saw = True
+    return total if saw else None
+
+
+def docker_df_total_reclaimable_bytes() -> int | None:
+    total = 0
+    saw = False
+    for row in _docker_system_df_rows():
+        if "Reclaimable" not in row:
+            continue
+        total += _docker_parse_reclaimable_bytes(row.get("Reclaimable", ""))
+        saw = True
+    return total if saw else None
+
+
+def _estimate_docker_reclaimable(ctx: Context, type_name: str | None) -> Estimate:
+    if shutil.which("docker") is None:
+        return Estimate(bytes=None, note="docker not installed")
+    try:
+        if type_name is None:
+            b = docker_df_total_reclaimable_bytes()
+        else:
+            b = docker_df_type_reclaimable_bytes(type_name)
+    except PatchError as e:
+        return Estimate(bytes=None, note=str(e))
+    if b is None:
+        return Estimate(bytes=None, note="unknown")
+    return Estimate(bytes=b, note="up to")
+
+
+def measure_docker_df_type(type_name: str) -> Callable[[Context], int | None]:
+    def _m(_: Context) -> int | None:
+        return docker_df_type_size_bytes(type_name)
+
+    return _m
+
+
+def measure_docker_df_total(_: Context) -> int | None:
+    return docker_df_total_size_bytes()
+
+
+def patch_docker_container_prune(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "container", "prune", "-f"])
+
+
+def patch_docker_image_prune_dangling(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "image", "prune", "-f"])
+
+
+def patch_docker_image_prune_all(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "image", "prune", "-a", "-f"])
+
+
+def patch_docker_builder_prune(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "builder", "prune", "-f"])
+
+
+def patch_docker_builder_prune_all(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "builder", "prune", "-a", "-f"])
+
+
+def patch_docker_volume_prune(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "volume", "prune", "-f"])
+
+
+def patch_docker_volume_prune_all(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "volume", "prune", "-a", "-f"])
+
+
+def patch_docker_system_prune(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "system", "prune", "-f"])
+
+
+def patch_docker_system_prune_all(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "system", "prune", "-a", "-f"])
+
+
+def patch_docker_system_prune_volumes(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "system", "prune", "--volumes", "-f"])
+
+
+def patch_docker_system_prune_all_volumes(ctx: Context) -> None:
+    require_cmd("docker")
+    if ctx.dry_run:
+        return
+    run_cmd(["docker", "system", "prune", "-a", "--volumes", "-f"])
 
 
 def measure_pacman_cache(_: Context) -> int | None:
@@ -495,9 +695,9 @@ def all_patches() -> list[Patch]:
             estimate=lambda _ctx: Estimate(bytes=None, note="no savings"),
         ),
         Patch(
-            patch_id="pacman-cache-keep-2",
-            title="Prune pacman cache (keep 2)",
-            description="Keeps only newest 2 cached versions per package.",
+            patch_id="pacman-cache",
+            title="Prune pacman cache",
+            description="Keeps only newest version per package and removes uninstalled packages.",
             requires=("sudo", "paccache", "du"),
             run=patch_paccache_keep2,
             measure=measure_pacman_cache,
@@ -543,7 +743,9 @@ def all_patches() -> list[Patch]:
             title="Delete Brave cache",
             description="Deletes ~/.cache/BraveSoftware (app cache; not Flatpak-specific).",
             requires=("du",),
-            run=lambda ctx: patch_delete_home_path(ctx, Path.home() / ".cache/BraveSoftware"),
+            run=lambda ctx: patch_delete_home_path(
+                ctx, Path.home() / ".cache/BraveSoftware"
+            ),
             measure=lambda ctx: measure_path(ctx, Path.home() / ".cache/BraveSoftware"),
             estimate=estimate_delete_paths([Path.home() / ".cache/BraveSoftware"]),
         ),
@@ -552,7 +754,9 @@ def all_patches() -> list[Patch]:
             title="Delete JetBrains cache",
             description="Deletes ~/.cache/JetBrains (app cache; not Flatpak-specific).",
             requires=("du",),
-            run=lambda ctx: patch_delete_home_path(ctx, Path.home() / ".cache/JetBrains"),
+            run=lambda ctx: patch_delete_home_path(
+                ctx, Path.home() / ".cache/JetBrains"
+            ),
             measure=lambda ctx: measure_path(ctx, Path.home() / ".cache/JetBrains"),
             estimate=estimate_delete_paths([Path.home() / ".cache/JetBrains"]),
         ),
@@ -573,6 +777,105 @@ def all_patches() -> list[Patch]:
             run=patch_npm_cache_clean,
             measure=measure_npm_cache,
             estimate=estimate_npm_cache,
+        ),
+        Patch(
+            patch_id="docker-container-prune",
+            title="Docker: prune stopped containers",
+            description="Runs: docker container prune -f",
+            requires=("docker",),
+            run=patch_docker_container_prune,
+            measure=measure_docker_df_type("Containers"),
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, "Containers"),
+        ),
+        Patch(
+            patch_id="docker-image-prune-dangling",
+            title="Docker: prune dangling images",
+            description="Runs: docker image prune -f",
+            requires=("docker",),
+            run=patch_docker_image_prune_dangling,
+            measure=measure_docker_df_type("Images"),
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, "Images"),
+        ),
+        Patch(
+            patch_id="docker-image-prune-all",
+            title="Docker: prune unused images (aggressive)",
+            description="Runs: docker image prune -a -f (removes all unused images, not just dangling)",
+            requires=("docker",),
+            run=patch_docker_image_prune_all,
+            measure=measure_docker_df_type("Images"),
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, "Images"),
+        ),
+        Patch(
+            patch_id="docker-builder-prune",
+            title="Docker: prune build cache",
+            description="Runs: docker builder prune -f",
+            requires=("docker",),
+            run=patch_docker_builder_prune,
+            measure=measure_docker_df_type("Build Cache"),
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, "Build Cache"),
+        ),
+        Patch(
+            patch_id="docker-builder-prune-all",
+            title="Docker: prune build cache (aggressive)",
+            description="Runs: docker builder prune -a -f (includes internal/frontend images)",
+            requires=("docker",),
+            run=patch_docker_builder_prune_all,
+            measure=measure_docker_df_type("Build Cache"),
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, "Build Cache"),
+        ),
+        Patch(
+            patch_id="docker-volume-prune",
+            title="Docker: prune unused volumes",
+            description="Runs: docker volume prune -f (removes unused anonymous volumes)",
+            requires=("docker",),
+            run=patch_docker_volume_prune,
+            measure=measure_docker_df_type("Local Volumes"),
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, "Local Volumes"),
+        ),
+        Patch(
+            patch_id="docker-volume-prune-all",
+            title="Docker: prune unused volumes (aggressive)",
+            description="Runs: docker volume prune -a -f (removes all unused local volumes, including named)",
+            requires=("docker",),
+            run=patch_docker_volume_prune_all,
+            measure=measure_docker_df_type("Local Volumes"),
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, "Local Volumes"),
+        ),
+        Patch(
+            patch_id="docker-system-prune",
+            title="Docker: system prune",
+            description="Runs: docker system prune -f",
+            requires=("docker",),
+            run=patch_docker_system_prune,
+            measure=measure_docker_df_total,
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, None),
+        ),
+        Patch(
+            patch_id="docker-system-prune-all",
+            title="Docker: system prune (aggressive)",
+            description="Runs: docker system prune -a -f (removes all unused images)",
+            requires=("docker",),
+            run=patch_docker_system_prune_all,
+            measure=measure_docker_df_total,
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, None),
+        ),
+        Patch(
+            patch_id="docker-system-prune-volumes",
+            title="Docker: system prune with volumes (aggressive)",
+            description="Runs: docker system prune --volumes -f (includes unused anonymous volumes)",
+            requires=("docker",),
+            run=patch_docker_system_prune_volumes,
+            measure=measure_docker_df_total,
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, None),
+        ),
+        Patch(
+            patch_id="docker-system-prune-all-volumes",
+            title="Docker: system prune all + volumes (aggressive)",
+            description="Runs: docker system prune -a --volumes -f",
+            requires=("docker",),
+            run=patch_docker_system_prune_all_volumes,
+            measure=measure_docker_df_total,
+            estimate=lambda ctx: _estimate_docker_reclaimable(ctx, None),
         ),
         Patch(
             patch_id="journal-vacuum-200m",
@@ -627,7 +930,9 @@ def curses_select(patches: list[Patch]) -> list[Patch]:
         estimates: dict[str, Estimate] = {}
         status = ""
 
-        ctx = Context(dry_run=True, yes=True, report_path=Path("/dev/null"), sudo_estimates=False)
+        ctx = Context(
+            dry_run=True, yes=True, report_path=Path("/dev/null"), sudo_estimates=False
+        )
 
         while True:
             stdscr.erase()
@@ -654,7 +959,10 @@ def curses_select(patches: list[Patch]) -> list[Patch]:
                 else:
                     stdscr.addnstr(row, 0, line, w - 1)
 
-            footer = status or f"Selected: {len(selected)} | sudo estimates: {'on' if ctx.sudo_estimates else 'off'}"
+            footer = (
+                status
+                or f"Selected: {len(selected)} | sudo estimates: {'on' if ctx.sudo_estimates else 'off'}"
+            )
             stdscr.addnstr(h - 3, 0, footer, w - 1)
 
             desc = patches[idx].description if patches else ""
@@ -716,7 +1024,7 @@ def curses_select(patches: list[Patch]) -> list[Patch]:
                 except Exception as e:  # noqa: BLE001
                     estimates[p.patch_id] = Estimate(bytes=None, note=str(e))
                     status = ""
-    
+
     return curses.wrapper(_inner)
 
 
@@ -728,7 +1036,9 @@ def build_report_path() -> Path:
 def write_report(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     tmp.replace(path)
 
 
