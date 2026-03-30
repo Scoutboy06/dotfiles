@@ -9,7 +9,7 @@ Usage: lock-unless-ssid [--iface IFACE] [--file PATH] [SSID...]
 Locks the current session unless connected to a trusted SSID.
 
 Trusted SSIDs come from positional arguments if provided; otherwise from
---file (default: ~/.config/omarchy/trusted-ssids.txt).
+--file (default: ~/.config/trusted-ssids.txt).
 
 Notes:
 - SSIDs are matched exactly.
@@ -65,7 +65,7 @@ read_allowlist_file() {
 
 main() {
   local iface=""
-  local file="$HOME/.config/omarchy/trusted-ssids.txt"
+  local file="$HOME/.config/trusted-ssids.txt"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
