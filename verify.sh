@@ -60,6 +60,8 @@ REQUIRED_COMMANDS=(
   "pamixer:pamixer"
   "wl-copy:wl-clipboard"
   "uwsm:uwsm"
+  "makoctl:mako"
+  "wf-recorder:wf-recorder"
 )
 
 # Optional commands

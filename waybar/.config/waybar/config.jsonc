@@ -187,20 +187,20 @@
     "on-scroll-right": ""
   },
   "custom/screenrecording-indicator": {
-    "on-click": "omarchy-cmd-screenrecord",
-    "exec": "$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh",
+    "on-click": "~/.config/waybar/scripts/toggle-screen-recording.sh",
+    "exec": "~/.config/waybar/scripts/screen-recording.sh",
     "signal": 8,
     "return-type": "json"
   },
   "custom/idle-indicator": {
-    "on-click": "omarchy-toggle-idle",
-    "exec": "$OMARCHY_PATH/default/waybar/indicators/idle.sh",
+    "on-click": "~/.config/waybar/scripts/toggle-idle.sh",
+    "exec": "~/.config/waybar/scripts/idle-indicator.sh",
     "signal": 9,
     "return-type": "json"
   },
   "custom/notification-silencing-indicator": {
-    "on-click": "omarchy-toggle-notification-silencing",
-    "exec": "$OMARCHY_PATH/default/waybar/indicators/notification-silencing.sh",
+    "on-click": "~/.config/waybar/scripts/toggle-dnd.sh",
+    "exec": "~/.config/waybar/scripts/notification-silencing.sh",
     "signal": 10,
     "return-type": "json"
   },

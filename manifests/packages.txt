@@ -28,6 +28,10 @@ pamixer
 
 # Notifications
 libnotify
+mako
+
+# Screen recording
+wf-recorder
 
 # Network
 iw
