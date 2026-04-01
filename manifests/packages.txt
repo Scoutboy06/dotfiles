@@ -16,6 +16,9 @@ xdg-desktop-portal-hyprland
 # Session management
 uwsm
 
+# App launcher
+walker
+
 # Wayland utilities
 brightnessctl
 wl-clipboard

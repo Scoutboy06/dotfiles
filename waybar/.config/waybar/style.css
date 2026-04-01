@@ -1,4 +1,6 @@
-@import "../omarchy/current/theme/waybar.css";
+/* Theme colors - extracted from omarchy/themes/elias-jade */
+@define-color foreground #C1C497;
+@define-color background #000000;
 
 * {
   background-color: transparent;
@@ -51,10 +53,9 @@
 #cpu,
 #battery,
 #pulseaudio,
-#custom-omarchy,
+#custom-launcher,
 #custom-screenrecording-indicator,
-#custom-whisper-dictate-indicator,
-#custom-update {
+#custom-whisper-dictate-indicator {
   min-width: 12px;
   margin: 0 7.5px;
 }
@@ -80,10 +81,6 @@ tooltip {
   background-color: @background;
   border-radius: 8px;
   padding: 2px;
-}
-
-#custom-update {
-  font-size: 10px;
 }
 
 #clock {

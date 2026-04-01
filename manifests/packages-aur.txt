@@ -1,6 +1,14 @@
 # AUR packages
 # Install with your AUR helper, e.g.: paru -S $(grep -v '^#' manifests/packages-aur.txt | tr '\n' ' ')
 
+# App launcher backend (required by walker)
+# elephant-all-bin includes all providers, or install individually:
+# elephant-bin, elephant-desktopapplications-bin, elephant-clipboard-bin, etc.
+elephant-all-bin
+
+# XDG default terminal launcher (proposed standard)
+xdg-terminal-exec
+
 # Terminal
 ghostty
 
