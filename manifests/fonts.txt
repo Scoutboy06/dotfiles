@@ -1,0 +1,12 @@
+# Required fonts
+# Most can be installed via pacman or AUR
+
+# Primary UI font (Waybar, terminals)
+# Package: ttf-cascadia-mono-nerd (or ttf-cascadia-code-nerd)
+CaskaydiaMono Nerd Font
+
+# Omarchy custom icon font (used for waybar logo)
+# NOTE: This font comes from the Omarchy distribution.
+# In Phase 5, we will replace this with a standard Nerd Font icon.
+# For now, if you don't have Omarchy installed, the logo icon will be missing.
+omarchy

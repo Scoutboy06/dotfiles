@@ -1,0 +1,27 @@
+# AUR packages
+# Install with your AUR helper, e.g.: paru -S $(grep -v '^#' manifests/packages-aur.txt | tr '\n' ' ')
+
+# Terminal
+ghostty
+
+# Password manager
+1password
+
+# Notes
+obsidian
+
+# Music
+spotify
+
+# Voice typing (optional)
+# voxtype
+
+# Drawing tablet
+opentabletdriver
+
+# Editor
+sublime-text-4
+
+# Speech-to-text model for transcribe-video script
+# whisper.cpp
+# whisper.cpp-model-medium-q5_0

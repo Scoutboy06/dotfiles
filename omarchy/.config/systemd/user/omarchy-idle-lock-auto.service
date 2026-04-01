@@ -1,8 +1,0 @@
-[Unit]
-Description=Auto-toggle Omarchy idle lock based on SSID
-PartOf=graphical-session.target
-After=graphical-session.target
-
-[Service]
-Type=oneshot
-ExecStart=%h/.local/bin/omarchy-idle-lock-auto --file %h/.config/omarchy/trusted-ssids.txt

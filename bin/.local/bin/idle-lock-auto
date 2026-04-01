@@ -4,9 +4,9 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: omarchy-idle-lock-auto [--iface IFACE] [--file PATH]
+Usage: idle-lock-auto [--iface IFACE] [--file PATH]
 
-Automatically toggles Omarchy idle locking based on the current SSID.
+Automatically toggles idle locking based on the current SSID.
 
 If connected to a trusted SSID (allowlist), hypridle is stopped (idle lock off).
 Otherwise, hypridle is started (idle lock on).
@@ -15,7 +15,7 @@ Allowlist file format: one SSID per line; blank lines and lines starting with
 # are ignored.
 
 Defaults:
-  --file  ~/.config/omarchy/trusted-ssids.txt
+  --file  ~/.config/idle-lock/trusted-ssids.txt
   --iface first interface from `iw dev`
 USAGE
 }
@@ -78,7 +78,6 @@ hypridle_is_running() {
 }
 
 start_hypridle() {
-  # Match Omarchy's behavior (uwsm-app makes sure it is in the session).
   uwsm-app -- hypridle >/dev/null 2>&1 &
 }
 
@@ -92,7 +91,7 @@ refresh_waybar_idle_indicator() {
 
 main() {
   local iface=""
-  local file="$HOME/.config/omarchy/trusted-ssids.txt"
+  local file="$HOME/.config/idle-lock/trusted-ssids.txt"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -155,16 +154,16 @@ main() {
     if hypridle_is_running; then
       stop_hypridle
       changed="yes"
-      printf 'omarchy-idle-lock-auto: safe SSID (%s) -> stop hypridle\n' "$ssid"
+      printf 'idle-lock-auto: safe SSID (%s) -> stop hypridle\n' "$ssid"
     fi
   else
     if ! hypridle_is_running; then
       start_hypridle
       changed="yes"
       if [[ -n $ssid ]]; then
-        printf 'omarchy-idle-lock-auto: unsafe SSID (%s) -> start hypridle\n' "$ssid"
+        printf 'idle-lock-auto: unsafe SSID (%s) -> start hypridle\n' "$ssid"
       else
-        printf 'omarchy-idle-lock-auto: no SSID -> start hypridle\n'
+        printf 'idle-lock-auto: no SSID -> start hypridle\n'
       fi
     fi
   fi

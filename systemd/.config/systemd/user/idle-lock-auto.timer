@@ -1,5 +1,5 @@
 [Unit]
-Description=Run Omarchy idle lock auto-toggle periodically
+Description=Run idle lock auto-toggle periodically
 
 [Timer]
 OnBootSec=15s

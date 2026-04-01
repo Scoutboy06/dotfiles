@@ -122,6 +122,12 @@ def build_registry() -> dict[str, Module]:
             package="bin",
             target="~",
         ),
+        "systemd": StowModule(
+            id="systemd",
+            stow_dir=".",
+            package="systemd",
+            target="~",
+        ),
     }
 
 
@@ -136,7 +142,20 @@ def build_configs() -> dict[str, list[str]]:
             "bin",
             "sublime-text",
             "agents",
+            "systemd",
         ],
+        # Full Hyprland desktop (includes Omarchy theme for now).
+        "desktop": [
+            "waybar",
+            "hypr",
+            "OpenTabletDriver",
+            "bin",
+            "sublime-text",
+            "agents",
+            "systemd",
+            "omarchy",
+        ],
+        # Legacy alias for "desktop" config.
         "omarchy": [
             "waybar",
             "hypr",
@@ -144,6 +163,7 @@ def build_configs() -> dict[str, list[str]]:
             "bin",
             "sublime-text",
             "agents",
+            "systemd",
             "omarchy",
         ],
     }

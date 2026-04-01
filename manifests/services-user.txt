@@ -1,0 +1,9 @@
+# Systemd user services to enable
+# Enable with: systemctl --user enable --now $(grep -v '^#' manifests/services-user.txt | tr '\n' ' ')
+
+# Disk usage monitoring (notifies when disk is nearly full)
+disk-usage-watch.timer
+
+# Auto-toggle idle lock based on trusted SSIDs
+# Config file: ~/.config/idle-lock/trusted-ssids.txt
+idle-lock-auto.timer

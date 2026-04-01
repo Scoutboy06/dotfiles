@@ -1,0 +1,24 @@
+# Optional packages - install based on your needs
+# Install with: pacman -S --needed $(grep -v '^#' manifests/packages-optional.txt | tr '\n' ' ')
+
+ffmpeg
+btop	# System monitoring
+snapper	# Btrfs snapshot management
+
+# Drawing tablet support
+# opentabletdriver  # AUR package
+
+# Package cache cleanup
+pacman-contrib
+
+# Battery monitoring TUI (for laptops)
+upower
+
+# Development
+docker
+lazygit
+
+# Editors
+# sublime-text-4    # AUR package
+
+

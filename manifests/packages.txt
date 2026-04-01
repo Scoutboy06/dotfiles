@@ -1,0 +1,43 @@
+# Required packages for dotfiles
+# Install with: pacman -S --needed $(grep -v '^#' manifests/packages.txt | tr '\n' ' ')
+
+# Core
+git
+python
+stow
+
+# Hyprland desktop
+hyprland
+hyprlock
+hypridle
+waybar
+xdg-desktop-portal-hyprland
+
+# Session management
+uwsm
+
+# Wayland utilities
+brightnessctl
+wl-clipboard
+
+# Audio
+pipewire
+pipewire-pulse
+wireplumber
+pamixer
+
+# Notifications
+libnotify
+
+# Network
+iw
+networkmanager
+
+# File manager
+nautilus
+
+# Terminal (pick one, ghostty is in AUR)
+# ghostty
+
+# Fonts - see fonts.txt for details
+ttf-cascadia-mono-nerd
