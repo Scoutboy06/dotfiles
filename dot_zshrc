@@ -1,0 +1,127 @@
+# ~/.zshrc - Zsh configuration
+
+# ----- History -----
+HISTFILE=~/.zsh_history
+HISTSIZE=50000
+SAVEHIST=50000
+setopt EXTENDED_HISTORY          # Write timestamp to history
+setopt HIST_EXPIRE_DUPS_FIRST    # Expire duplicates first
+setopt HIST_IGNORE_DUPS          # Don't record duplicates
+setopt HIST_IGNORE_SPACE         # Don't record commands starting with space
+setopt HIST_VERIFY               # Show command before executing from history
+setopt SHARE_HISTORY             # Share history between sessions
+setopt APPEND_HISTORY            # Append to history file
+
+# ----- Directory navigation -----
+setopt AUTO_CD                   # cd by typing directory name
+setopt AUTO_PUSHD                # Push directory to stack on cd
+setopt PUSHD_IGNORE_DUPS         # Don't push duplicates
+setopt PUSHD_SILENT              # Don't print stack after pushd/popd
+DIRSTACKSIZE=20
+
+# ----- Completion -----
+autoload -Uz compinit
+compinit -C  # -C for faster startup (skip security check)
+
+zstyle ':completion:*' menu select                       # Menu selection
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'     # Case insensitive
+zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}   # Colored completions
+zstyle ':completion:*' group-name ''                     # Group completions
+zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
+zstyle ':completion:*:warnings' format '%F{red}-- no matches --%f'
+
+# ----- Key bindings -----
+bindkey -e                        # Emacs keybindings
+bindkey '^[[A' history-search-backward  # Up arrow
+bindkey '^[[B' history-search-forward   # Down arrow
+bindkey '^[[H' beginning-of-line        # Home
+bindkey '^[[F' end-of-line              # End
+bindkey '^[[3~' delete-char             # Delete
+bindkey '^[[1;5C' forward-word          # Ctrl+Right
+bindkey '^[[1;5D' backward-word         # Ctrl+Left
+
+# ----- Environment -----
+export EDITOR="${EDITOR:-nvim}"
+export VISUAL="$EDITOR"
+export PAGER="${PAGER:-less}"
+export LESS='-R --mouse --wheel-lines=3'
+
+# XDG directories
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+# PATH additions
+typeset -U path  # Remove duplicates
+path=(~/.local/bin $path)
+
+# ----- Aliases -----
+# ls with colors (use eza if available)
+if command -v eza &>/dev/null; then
+    alias ls='eza --icons --group-directories-first'
+    alias ll='eza -l --icons --group-directories-first'
+    alias la='eza -la --icons --group-directories-first'
+    alias lt='eza --tree --icons --group-directories-first'
+else
+    alias ls='ls --color=auto'
+    alias ll='ls -lh'
+    alias la='ls -lah'
+fi
+
+# Safety aliases
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Shortcuts
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias g='git'
+alias v='nvim'
+alias vim='nvim'
+
+# Git aliases
+alias gs='git status'
+alias gd='git diff'
+alias gl='git log --oneline -20'
+alias gp='git push'
+alias gc='git commit'
+
+# System
+alias reload='source ~/.zshrc'
+alias df='df -h'
+alias du='du -h'
+alias free='free -h'
+
+# Chezmoi
+alias cz='chezmoi'
+alias cza='chezmoi apply'
+alias czd='chezmoi diff'
+alias cze='chezmoi edit'
+
+# ----- Integrations -----
+
+# Starship prompt
+if command -v starship &>/dev/null; then
+    eval "$(starship init zsh)"
+fi
+
+# zoxide (smarter cd)
+if command -v zoxide &>/dev/null; then
+    eval "$(zoxide init zsh)"
+fi
+
+# fzf
+if command -v fzf &>/dev/null; then
+    source <(fzf --zsh) 2>/dev/null || true
+fi
+
+# direnv
+if command -v direnv &>/dev/null; then
+    eval "$(direnv hook zsh)"
+fi
+
+# ----- Local overrides -----
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local

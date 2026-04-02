@@ -13,9 +13,34 @@ chezmoi init --apply Scoutboy06
 ```
 
 On first run, chezmoi will:
-1. Detect your machine (desktop `eliaspc` or laptop `eliaslt`)
-2. Generate machine-specific configs (monitors, packages, etc.)
-3. Install packages via pacman/paru
+1. Create common home directories (Documents, Downloads, Pictures, etc.)
+2. Detect your machine (desktop `eliaspc` or laptop `eliaslt`)
+3. Install packages via pacman/paru (including zsh, neovim, etc.)
+4. Generate machine-specific configs (monitors, packages, etc.)
+5. Set zsh as your default shell
+6. Deploy neovim with LazyVim configuration
+
+## What's Included
+
+### Shell (zsh)
+- **Zsh** with sensible defaults (history, completion, key bindings)
+- **Starship** prompt with git status, language versions, cmd duration
+- **eza** for better `ls` with icons
+- **zoxide** for smarter `cd` (remembers directories)
+- **fzf** for fuzzy finding
+- **direnv** for per-directory environment variables
+
+### Editor (neovim)
+- **LazyVim** distribution - batteries included
+- Auto-installs plugins on first launch
+- LSP, treesitter, telescope, and more
+- Tokyo Night colorscheme
+
+### Desktop (Hyprland)
+- Hyprland window manager with custom keybindings
+- Waybar status bar
+- Screenshot/screenrecord scripts
+- Idle lock with hyprlock
 
 ## Manual Setup
 
@@ -38,7 +63,7 @@ Apply all configs:
 chezmoi apply
 ```
 
-Apply without running package install script:
+Apply without running scripts (packages, shell change):
 
 ```bash
 chezmoi apply --exclude=scripts
@@ -104,6 +129,12 @@ optional:  # Not auto-installed
 
 The package install script runs automatically when `packages.yaml` changes.
 
+Key packages installed:
+- **Shell**: zsh, starship, eza, zoxide, fzf, direnv
+- **Editor**: neovim, ripgrep, fd
+- **Desktop**: hyprland, waybar, hyprlock, hypridle
+- **Utils**: grim, slurp, satty (screenshots), gpu-screen-recorder
+
 ## Scripts
 
 ### Keybinding scripts (in `~/.local/bin/`)
@@ -139,9 +170,14 @@ dotfiles/                          # chezmoi source directory
 ├── .chezmoidata/
 │   └── packages.yaml              # Package definitions
 ├── .chezmoiscripts/
-│   └── run_onchange_before_install-packages.sh.tmpl
+│   ├── run_once_before_create-directories.sh
+│   ├── run_onchange_before_install-packages.sh.tmpl
+│   └── run_once_after_set-default-shell.sh
 ├── .chezmoiignore                 # Files to skip per-machine
+├── dot_zshrc                      # Zsh configuration
 ├── dot_config/
+│   ├── nvim/                      # Neovim (LazyVim)
+│   ├── starship.toml              # Starship prompt
 │   ├── hypr/                      # Hyprland configs
 │   │   ├── monitors.conf.tmpl     # Machine-specific monitors
 │   │   └── bindings.conf          # Keybindings
@@ -154,6 +190,18 @@ dotfiles/                          # chezmoi source directory
 ├── dot_local/bin/                 # User scripts
 └── dot_agents/skills/             # AI agent skills
 ```
+
+## Customization
+
+### Zsh
+Add local overrides to `~/.zshrc.local` (not tracked by chezmoi).
+
+### Neovim
+Add custom plugins in `~/.config/nvim/lua/plugins/`.
+The config uses LazyVim - see [lazyvim.org](https://www.lazyvim.org/) for documentation.
+
+### Starship
+Edit `~/.config/starship.toml` or use `chezmoi edit ~/.config/starship.toml`.
 
 ## Notes
 

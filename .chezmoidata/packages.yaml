@@ -11,7 +11,20 @@ common:
   # Core
   - git
   - python
-  - stow
+  - base-devel
+
+  # Shell
+  - zsh
+  - starship
+  - eza
+  - zoxide
+  - fzf
+  - direnv
+
+  # Editor
+  - neovim
+  - ripgrep
+  - fd
 
   # Hyprland desktop
   - hyprland
