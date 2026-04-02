@@ -1,0 +1,23 @@
+# Trusted SSIDs for idle-lock-auto
+#
+# When connected to one of these networks, hypridle will be stopped
+# (no automatic screen lock). On other networks or when disconnected,
+# hypridle will run normally.
+#
+# Format: one SSID per line. Blank lines and lines starting with # are ignored.
+
+{{- if .isLaptop }}
+# Laptop trusted networks
+# Home WiFi
+# HomeNetwork-5G
+# HomeNetwork-2.4G
+
+# Mobile hotspot
+# Elias-Phone
+
+# Office/Work
+# OfficeWiFi
+{{- else if .isDesktop }}
+# Desktop is typically on ethernet - no trusted SSIDs needed
+# Add SSIDs here if using WiFi occasionally
+{{- end }}
