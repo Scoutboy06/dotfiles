@@ -1,66 +1,64 @@
 # Agents Guide (dotfiles)
 
-This is a small, pragmatic dotfiles repository. There is no full build system
-and no pinned test/lint toolchain; most changes are scripts and config files.
+This is a small, pragmatic dotfiles repository managed by **chezmoi**. There is
+no formal test runner; most changes are scripts and config files.
 
 Primary areas:
 
-- `install.py` (Python installer / module registry; wraps GNU Stow)
-- `bin/.local/bin/*` (small CLI tools; mostly Python and bash)
-- `*.sh` (shell scripts)
-- `hypr/**`, `waybar/**`, `OpenTabletDriver/**`, `omarchy/**` (config/assets)
+- `.chezmoi*.tmpl` (chezmoi config + templates)
+- `.chezmoiscripts/` (run scripts executed during `chezmoi apply`)
+- `dot_local/bin/` (CLI tools; Python and bash)
+- `dot_config/` (app configs: hypr, waybar, nvim, etc.)
+- `dot_agents/` (agent skills)
 
 Cursor/Copilot rules:
 
 - No `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md`
-  found in this repo at the time of writing. If these appear later, treat them
-  as higher-priority repo instructions and update this document.
+  found. If these appear later, treat them as higher-priority instructions.
 
 ## Build / Lint / Test
 
-There is no formal test runner. Treat these commands as the repo's "smoke
-checks" and "single test" equivalents.
+There is no formal test runner. Use these commands as "smoke checks."
 
-Installer / Stow workflow:
+### Chezmoi workflow
 
-- List configs + modules: `./install.py --list`
-- Dry-run a full config install: `./install.py omarchy --dry-run --verbose`
-- Install a config (writes symlinks): `./install.py omarchy`
-- Run a single module (repeat `--only`): `./install.py --only waybar --dry-run --verbose`
-- Restow after moving files: `./install.py omarchy --restow`
+- Preview changes: `chezmoi diff`
+- Dry-run apply: `chezmoi apply --dry-run --verbose`
+- Apply changes: `chezmoi apply`
+- Re-add modified target: `chezmoi re-add ~/.config/waybar/config.jsonc`
+- Edit source directly: `chezmoi edit ~/.local/bin/csvcut`
 
 Notes:
 
-- Stow-based modules require `stow` on PATH.
-- Stow refuses to overwrite existing targets; do not weaken safety checks.
+- Template files (`*.tmpl`) are rendered using `.chezmoi.toml.tmpl` data.
+- Files in `.chezmoiignore` are excluded from the target.
+- `executable_*` prefix makes files executable in the target.
 
-Python checks:
+### Python checks
 
-- Fast parse/bytecode check (repo-wide): `python3 -m compileall -q .`
-- "Single test" for a script: run its smallest useful invocation, typically
-  `--help` or a minimal input file:
-  - `python3 bin/.local/bin/csvcut --help`
-  - `python3 bin/.local/bin/md-convert --help`
-  - `./install.py --help`
+- Fast parse check (repo-wide): `python3 -m compileall -q .`
+- "Single test" for a script: run `--help` or a minimal invocation:
+  - `python3 dot_local/bin/executable_csvcut --help`
+  - `python3 dot_local/bin/executable_md-convert --help`
 
-Shell checks:
+### Shell checks
 
-- Syntax-only: `bash -n eduroam_setup.sh check-status.sh check-agents-sync.sh`
-- "Single test" for a shell script:
-  - `./eduroam_setup.sh --dry-run` (prints profile; does not require root)
-  - `./check-agents-sync.sh` (no output on success; may notify via `notify-send`)
+- Syntax-only: `bash -n dot_local/bin/executable_check-status`
+- "Single test" examples:
+  - `dot_local/bin/executable_check-agents-sync` (no output on success)
+  - Waybar scripts: `bash -n dot_config/waybar/scripts/executable_toggle-idle.sh`
 
-Optional lint/format (if installed locally):
+### Optional lint/format (if installed)
 
 - Python: `ruff check .` and `ruff format .`
-- Shell: `shellcheck eduroam_setup.sh check-status.sh check-agents-sync.sh`
+- Shell: `shellcheck dot_local/bin/executable_*`
 
-Practical "single test" patterns (no harness):
+### Practical "single test" patterns
 
-- Installer logic: `./install.py --only <module_id> --dry-run --verbose`
 - A CLI change: run `--help` and one minimal "happy path" invocation
-- A config change: run the owning app only if you already use it (Hyprland,
-  Waybar, etc.); otherwise keep diffs minimal and avoid speculative rewrites
+- A config change: run the owning app if you use it (Hyprland, Waybar);
+  otherwise keep diffs minimal and avoid speculative rewrites
+- Template changes: `chezmoi execute-template < file.tmpl` to test rendering
 
 ## Code Style
 
@@ -68,21 +66,19 @@ Practical "single test" patterns (no harness):
 
 - Keep changes small and local; avoid repo-wide refactors.
 - Prefer safe, reversible operations (dry-run flags; no overwrites).
-- Default to ASCII in new/edited files unless the file already uses Unicode.
-- Do not add heavy new tooling (formatters/linters/build systems) unless
-  clearly justified and documented here.
+- Default to ASCII unless the file already uses Unicode.
+- Do not add heavy tooling without clear justification.
 
 ### Python
 
-This repo's Python scripts are standalone CLIs (see `install.py` and
-`bin/.local/bin/csvcut`). Match existing patterns.
+Scripts are standalone CLIs (see `executable_csvcut`, `executable_md-convert`).
 
 Structure:
 
 - Use `from __future__ import annotations`.
-- Prefer a `main(argv: list[str]) -> int` and `raise SystemExit(main(...))`.
+- Prefer `main(argv: list[str]) -> int` with `raise SystemExit(main(...))`.
 - Keep parsing in `parse_args()` and keep I/O at the edges.
-- Prefer small, pure helper functions that are easy to exercise via CLI.
+- Prefer small, pure helper functions exercisable via CLI.
 
 Imports:
 
@@ -94,11 +90,11 @@ Types and data:
 
 - Use built-in generics: `list[str]`, `dict[str, ...]`, `str | None`.
 - Add explicit types on public functions and non-trivial locals.
-- Use `@dataclass(frozen=True)` for simple records (see `install.py`).
+- Use `@dataclass(frozen=True)` for simple records.
 
 Formatting:
 
-- Keep lines readable; follow the existing style (similar to Black/Ruff).
+- Keep lines readable; follow existing style (similar to Black/Ruff).
 - Prefer f-strings; avoid overly clever one-liners.
 
 Naming:
@@ -106,12 +102,11 @@ Naming:
 - `snake_case` for functions/vars, `PascalCase` for types/classes.
 - Be descriptive; abbreviate only common terms (`src`, `dst`, `tmp`).
 
-Error handling and exits:
+Error handling:
 
 - Fail fast with clear messages.
-- For CLIs:
-  - print errors to stderr (`print(..., file=sys.stderr)`)
-  - return non-zero exit codes; use `2` for usage/data errors when appropriate
+- Print errors to stderr (`print(..., file=sys.stderr)`).
+- Return non-zero exit codes; use `2` for usage/data errors.
 - Prefer `subprocess.run(..., check=True)` and bubble up failures.
 
 ### Shell (bash)
@@ -125,7 +120,7 @@ New non-trivial scripts should use the safer baseline:
 
 CLI patterns:
 
-- Provide `usage` and `die` helpers.
+- Provide `usage` and `die` helpers (see `executable_eduroam-setup.tmpl`).
 - Validate inputs; reject multi-line values when writing config files.
 - For scripts writing secrets/configs:
   - use `read -s` for secrets
@@ -133,25 +128,31 @@ CLI patterns:
   - avoid printing secrets in dry-run output
 
 When editing existing scripts, keep behavior stable even if they don't fully
-follow the baseline (e.g. `check-status.sh` is intentionally small).
+follow the baseline (e.g. `executable_check-status` is intentionally small).
 
 ### Config files
 
 - Preserve upstream conventions and formatting; keep diffs minimal.
-- Hyprland: avoid reflowing lines; keep comments accurate.
+- Hyprland (`dot_config/hypr/`): avoid reflowing lines; keep comments accurate.
 - Waybar CSS: keep changes scoped; avoid unrelated reformatting.
+- Use chezmoi templates (`*.tmpl`) for machine-specific values.
+
+### Chezmoi conventions
+
+- Prefix executable files with `executable_` (not chmod).
+- Use `dot_` prefix for hidden files/directories.
+- Template files use Go template syntax: `{{ .variableName }}`.
+- Machine-specific logic goes in `.chezmoi.toml.tmpl` and `.chezmoiignore`.
 
 ## Security / Safety
 
 - Never commit credentials, tokens, private keys, or machine-specific secrets.
-- Treat `eduroam_setup.sh` as security-sensitive (writes config under `/var`).
-- `install.py` is designed to be non-destructive; do not add overwrite behavior
-  without a compelling reason.
+- Treat `executable_eduroam-setup.tmpl` as security-sensitive (writes to `/var`).
+- Use `.chezmoiignore` to exclude machine-specific or sensitive files.
 
 ## Working With This Repo
 
-- Prefer dry-runs (`./install.py ... --dry-run --verbose`) before changing the
-  live `$HOME` target tree.
-- If you need to validate changes, pick the narrowest check that exercises the
-  code path you touched ("single test" mindset).
+- Prefer dry-runs (`chezmoi apply --dry-run --verbose`) before applying changes.
+- Use `chezmoi diff` to preview what will change.
+- Pick the narrowest check that exercises the code path you touched.
 - If you add new commands/workflows, update this file.
