@@ -80,6 +80,12 @@ def build_registry() -> dict[str, Module]:
 
     return {
         # Packages mirror the target tree under $HOME (stow target is ~).
+        "themes": StowModule(
+            id="themes",
+            stow_dir=".",
+            package="themes",
+            target="~",
+        ),
         "waybar": StowModule(
             id="waybar",
             stow_dir=".",
@@ -137,6 +143,7 @@ def build_configs() -> dict[str, list[str]]:
     return {
         # Cross-platform/common modules.
         "global": [
+            "themes",
             "waybar",
             "OpenTabletDriver",
             "bin",
@@ -146,6 +153,7 @@ def build_configs() -> dict[str, list[str]]:
         ],
         # Full Hyprland desktop (includes Omarchy theme for now).
         "desktop": [
+            "themes",
             "waybar",
             "hypr",
             "OpenTabletDriver",

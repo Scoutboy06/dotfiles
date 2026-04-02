@@ -4,6 +4,7 @@
 ffmpeg
 btop	# System monitoring
 snapper	# Btrfs snapshot management
+yazi	# terminal file manager
 
 # Drawing tablet support
 # opentabletdriver  # AUR package

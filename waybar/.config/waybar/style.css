@@ -1,6 +1,5 @@
-/* Theme colors - extracted from omarchy/themes/elias-jade */
-@define-color foreground #C1C497;
-@define-color background #000000;
+/* Import theme colors */
+@import url("../themes/elias-jade/waybar.css");
 
 * {
   background-color: transparent;
