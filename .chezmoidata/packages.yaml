@@ -26,19 +26,26 @@ common:
   # Wayland utilities
   - brightnessctl
   - wl-clipboard
+  - grim
+  - slurp
+  - hyprpicker
+  - satty
 
   # Audio
   - pipewire
   - pipewire-pulse
   - wireplumber
   - pamixer
+  - libpulse  # pactl for audio-switch
 
   # Notifications
   - libnotify
   - mako
 
   # Screen recording
-  - wf-recorder
+  - gpu-screen-recorder
+  - ffmpeg
+  - mpv
 
   # Network
   - iw

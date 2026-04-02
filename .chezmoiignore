@@ -12,6 +12,8 @@ __pycache__/
 
 # Machine-specific ignores
 {{ if not .isLaptop }}
-# Desktop doesn't need eduroam
+# Desktop doesn't need laptop-specific configs
 .config/eduroam/
+.config/systemd/user/battery-monitor.service
+.config/systemd/user/battery-monitor.timer
 {{ end }}

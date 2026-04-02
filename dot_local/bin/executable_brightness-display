@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+# Adjust brightness on the most likely display device.
+# Usage: brightness-display <step>
+# Examples: brightness-display +5%, brightness-display 5%-, brightness-display 50%
+# Adapted from Omarchy.
+
+step="${1:-+5%}"
+
+# Start with the first possible output, then refine to the most likely given an order heuristic.
+device="$(ls -1 /sys/class/backlight 2>/dev/null | head -n1)"
+for candidate in amdgpu_bl* intel_backlight acpi_video*; do
+  if [[ -e /sys/class/backlight/$candidate ]]; then
+    device="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$device" ]]; then
+  notify-send "No backlight device found" -u critical -t 3000
+  exit 1
+fi
+
+# Set the actual brightness of the display device.
+brightnessctl -d "$device" set "$step" >/dev/null
+
+# Get current brightness percentage for notification
+brightness=$(brightnessctl -d "$device" -m | cut -d',' -f4 | tr -d '%')
+
+# Use notify-send as fallback (swayosd would be nicer if available)
+if command -v swayosd-client &>/dev/null; then
+  swayosd-client --brightness "$brightness"
+else
+  notify-send -h int:value:"$brightness" -h string:x-canonical-private-synchronous:brightness \
+    "Brightness: ${brightness}%" -t 1500
+fi
