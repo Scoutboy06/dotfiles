@@ -30,6 +30,9 @@ opentabletdriver
 # Editor
 sublime-text-4
 
+# Disk utility app
+gnome-disk-utility
+
 # Speech-to-text model for transcribe-video script
 # whisper.cpp
 # whisper.cpp-model-medium-q5_0
