@@ -1,3 +1,4 @@
+{{- if .isLaptop -}}
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -6,15 +7,14 @@ IWD_DIR="/var/lib/iwd"
 PROFILE_NAME="eduroam"
 OUT_PATH="${IWD_DIR}/${PROFILE_NAME}.8021x"
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CERT_PATH_DEFAULT="${SCRIPT_DIR}/network/eduroam_ca_cert.pem"
+CERT_PATH_DEFAULT="$HOME/.config/eduroam/eduroam_ca_cert.pem"
 
 REALM="chalmers.se"
 SERVER_DOMAIN_MASK="eduroam.chalmers.se"
 
 usage() {
   cat <<'USAGE'
-Usage: eduroam_setup.sh [--dry-run]
+Usage: eduroam-setup [--dry-run]
 
 Options:
   --dry-run   Print the generated profile to stdout; do not write /var/lib/iwd/
@@ -193,3 +193,4 @@ main() {
 }
 
 main "$@"
+{{- end }}

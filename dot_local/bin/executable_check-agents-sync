@@ -4,7 +4,7 @@ set -euo pipefail
 
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/p/dotfiles}"
 AGENTS_DIR="${AGENTS_DIR:-$HOME/.agents}"
-AGENTS_SYNC_DIR="${AGENTS_SYNC_DIR:-$DOTFILES_DIR/agents}"
+AGENTS_SYNC_DIR="${AGENTS_SYNC_DIR:-$DOTFILES_DIR/dot_agents}"
 
 SRC_LOCK="$AGENTS_DIR/.skill-lock.json"
 DST_LOCK="$AGENTS_SYNC_DIR/.skill-lock.json"

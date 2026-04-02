@@ -1,25 +1,7 @@
 # Repo files - not dotfiles
 AGENTS.md
 README.md
-install.py
-verify.sh
-bootstrap.sh
-check-agents-sync.sh
-check-status.sh
-eduroam_setup.sh
 session-*.md
-
-# Old stow directories (to be removed after migration)
-agents/
-bin/
-hypr/
-OpenTabletDriver/
-sublime-text/
-systemd/
-themes/
-waybar/
-network/
-manifests/
 
 # Build artifacts
 __pycache__/
@@ -27,3 +9,9 @@ __pycache__/
 
 # Systemd timer symlinks (managed by systemd enable/disable)
 .config/systemd/user/timers.target.wants/
+
+# Machine-specific ignores
+{{ if not .isLaptop }}
+# Desktop doesn't need eduroam
+.config/eduroam/
+{{ end }}
