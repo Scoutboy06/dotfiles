@@ -1,5 +1,5 @@
 /* Import theme colors */
-@import url("../themes/elias-jade/waybar.css");
+@import url("../omarchy/current/theme/waybar.css");
 
 * {
   background-color: transparent;
@@ -53,6 +53,7 @@
 #battery,
 #pulseaudio,
 #custom-launcher,
+#custom-update,
 #custom-screenrecording-indicator,
 #custom-whisper-dictate-indicator {
   min-width: 12px;
