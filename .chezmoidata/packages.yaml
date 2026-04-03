@@ -9,9 +9,9 @@
 
 common:
   # Core
-  - git
-  - python
-  - base-devel
+  # - git
+  # - python
+  # - base-devel
 
   # Shell
   - zsh
@@ -22,94 +22,94 @@ common:
   - direnv
 
   # Editor
-  - neovim
-  - ripgrep
-  - fd
+  # - neovim
+  # - ripgrep
+  # - fd
 
   # Hyprland desktop
-  - hyprland
-  - hyprlock
-  - hypridle
-  - waybar
-  - xdg-desktop-portal-hyprland
+  # - hyprland
+  # - hyprlock
+  # - hypridle
+  # - waybar
+  # - xdg-desktop-portal-hyprland
 
   # Session management
-  - uwsm
+  # - uwsm
 
   # Wayland utilities
-  - brightnessctl
-  - wl-clipboard
-  - grim
-  - slurp
-  - hyprpicker
-  - satty
+  # - brightnessctl
+  # - wl-clipboard
+  # - grim
+  # - slurp
+  # - hyprpicker
+  # - satty
 
   # Audio
-  - pipewire
-  - pipewire-pulse
-  - wireplumber
-  - pamixer
-  - libpulse  # pactl for audio-switch
+  # - pipewire
+  # - pipewire-pulse
+  # - wireplumber
+  # - pamixer
+  # - libpulse  # pactl for audio-switch
 
   # Notifications
-  - libnotify
-  - mako
+  # - libnotify
+  # - mako
 
   # Screen recording
-  - gpu-screen-recorder
-  - ffmpeg
-  - mpv
+  # - gpu-screen-recorder
+  # - ffmpeg
+  # - mpv
 
   # Network
-  - iw
-  - networkmanager
+  # - iw
+  # - networkmanager
 
   # File manager
-  - nautilus
+  # - nautilus
 
   # Fonts
-  - ttf-cascadia-mono-nerd
+  # - ttf-cascadia-mono-nerd
 
 aur:
   # App launcher
-  - walker
-  - elephant-all-bin
-  - xdg-terminal-exec
+  # - walker
+  # - elephant-all-bin
+  # - xdg-terminal-exec
 
   # Terminal
-  - ghostty
+  # - ghostty
 
   # Apps
-  - 1password
-  - obsidian
-  - spotify
+  # - 1password
+  # - obsidian
+  # - spotify
   - sublime-text-4
 
 desktop:
   # Drawing tablet (desktop only)
-  - opentabletdriver
+  # - opentabletdriver
 
   # Extra utilities
   - gnome-disk-utility
 
 laptop:
   # Battery monitoring
-  - upower
+  # - upower
 
   # Power management
-  - power-profiles-daemon
+  # - power-profiles-daemon
 
 optional:
   # Development
-  - docker
-  - lazygit
+  # - docker
+  # - lazygit
 
   # System monitoring
-  - btop
+  # - btop
 
   # Terminal file manager
   - yazi
 
   # Btrfs snapshots
-  - snapper
-  - pacman-contrib
+  # - snapper
+  # - pacman-contrib
