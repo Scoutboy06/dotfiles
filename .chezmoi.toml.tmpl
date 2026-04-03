@@ -1,6 +1,7 @@
 {{- $hostname := .chezmoi.hostname -}}
 {{- $isDesktop := eq $hostname "eliaspc" -}}
 {{- $isLaptop := eq $hostname "eliaslt" -}}
+{{- $isOmarchy := lookPath "omarchy" | not | not -}}
 
 sourceDir = "/home/elias/p/dotfiles"
 
@@ -8,6 +9,7 @@ sourceDir = "/home/elias/p/dotfiles"
   hostname = {{ $hostname | quote }}
   isDesktop = {{ $isDesktop }}
   isLaptop = {{ $isLaptop }}
+  isOmarchy = {{ $isOmarchy }}
 
 {{- if $isDesktop }}
   # Desktop-specific

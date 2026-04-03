@@ -92,6 +92,17 @@ main() {
     local machine_packages=()
 # {{- end }}
 
+# {{- if .isOmarchy }}
+    # Omarchy-specific packages
+    local distro_packages=(
+# {{- range .omarchy }}
+        "# {{ . }}"
+# {{- end }}
+    )
+# {{- else }}
+    local distro_packages=()
+# {{- end }}
+
     # Install common packages
     if [[ ${#common_packages[@]} -gt 0 ]]; then
         install_pacman "${common_packages[@]}"
@@ -100,6 +111,11 @@ main() {
     # Install machine-specific packages
     if [[ ${#machine_packages[@]} -gt 0 ]]; then
         install_pacman "${machine_packages[@]}"
+    fi
+
+    # Install distro-specific packages
+    if [[ ${#distro_packages[@]} -gt 0 ]]; then
+        install_pacman "${distro_packages[@]}"
     fi
 
     # Install AUR packages

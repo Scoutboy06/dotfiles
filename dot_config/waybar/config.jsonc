@@ -205,17 +205,11 @@
     "return-type": "json"
   },
   "custom/voxtype": {
-    "exec": "omarchy-voxtype-status",
+    "exec": "voxtype status --follow --format json",
     "return-type": "json",
-    "format": "{icon}",
-    "format-icons": {
-      "idle": "",
-      "recording": "󰍬",
-      "transcribing": "󰔟"
-    },
+    "format": "{}",
     "tooltip": true,
-    "on-click-right": "omarchy-voxtype-config",
-    "on-click": "omarchy-voxtype-model"
+    "on-click": "systemctl --user restart voxtype"
   },
   "tray": {
     "icon-size": 12,

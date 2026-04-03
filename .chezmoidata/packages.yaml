@@ -6,6 +6,7 @@
 #   aur: AUR packages for all machines
 #   desktop: desktop-only packages
 #   laptop: laptop-only packages
+#   omarchy: Omarchy-specific packages (auto-detected)
 
 common:
   # Core
@@ -70,12 +71,14 @@ common:
   # Fonts
   # - ttf-cascadia-mono-nerd
 
-aur:
-  # App launcher
-  # - walker
-  # - elephant-all-bin
-  # - xdg-terminal-exec
+  # Drawing tablet (desktop only)
+#  - opentabletdriver
 
+  # Extra utilities
+  - gnome-disk-utility
+
+
+aur:
   # Terminal
   # - ghostty
 
@@ -83,14 +86,9 @@ aur:
   # - 1password
   # - obsidian
   # - spotify
-  - sublime-text-4
+  # - sublime-text-4
 
 desktop:
-  # Drawing tablet (desktop only)
-  # - opentabletdriver
-
-  # Extra utilities
-  - gnome-disk-utility
 
 laptop:
   # Battery monitoring
@@ -98,6 +96,10 @@ laptop:
 
   # Power management
   # - power-profiles-daemon
+
+omarchy:
+  # Omarchy-specific packages (auto-detected via `omarchy` command)
+  # Add packages here that should only be installed on Omarchy
 
 optional:
   # Development
