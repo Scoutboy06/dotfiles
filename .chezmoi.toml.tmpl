@@ -1,6 +1,6 @@
 {{- $hostname := .chezmoi.hostname -}}
-{{- $isDesktop := eq $hostname "eliaspc" -}}
-{{- $isLaptop := eq $hostname "eliaslt" -}}
+{{- $isDesktop := or (eq $hostname "EliasPC") (eq $hostname "eliaspc") -}}
+{{- $isLaptop := or (eq $hostname "eliaslt") (eq $hostname "EliasLT") -}}
 {{- $isOmarchy := lookPath "omarchy" | not | not -}}
 
 sourceDir = "/home/elias/p/dotfiles"

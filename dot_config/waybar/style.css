@@ -115,7 +115,7 @@ tooltip {
 
 #custom-voxtype.recording {
   color: #a55555;
-  animation: pulse 1s ease-in-out infinite;
+  /* animation: pulse 1s ease-in-out infinite; */
 }
 
 #custom-voxtype.transcribing {
@@ -129,8 +129,9 @@ tooltip {
 #custom-voxtype.stopped {
     color: #6272a4;
 }
+/**/
+/* @keyframes pulse { */
+/*     0%, 100% { opacity: 1; } */
+/*     50% { opacity: 0.5; } */
+/* } */
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}

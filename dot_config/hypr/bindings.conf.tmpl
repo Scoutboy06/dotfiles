@@ -29,10 +29,14 @@ bind = SUPER, D, togglespecialworkspace, vesktop
 bind = SUPER, M, togglespecialworkspace, music
 bind = SUPER, odiaeresis, togglespecialworkspace, terminal #odiaeresis=Ö
 
-# HP Programmable Key (voxtype voice typing)
-# Uncomment if you have voxtype installed
-# bind = , XF86Launch8, exec, voxtype record start
-# bindr = , XF86Launch8, exec, voxtype record stop
+{{- if .isLaptop }}
+# XF86Launch8 <=> HP Programmable Key
+bind = , XF86Launch8, exec, voxtype record start
+bindr = , XF86Launch8, exec, voxtype record stop
+{{- else if .isDesktop }}
+bind = , F12, exec, voxtype record start
+bindr = , F12, exec, voxtype record stop
+{{- end }}
 
 
 # Window rules so apps always spawn into their special workspace
