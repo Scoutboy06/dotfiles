@@ -10,19 +10,19 @@ bindm = SUPER, mouse:272, movewindow
 bindm = SUPER, mouse:273, resizewindow
 
 # apps
-bindd = SUPER, RETURN, Terminal, exec, $terminal
+bindd = SUPER, RETURN, Terminal, exec, uwsm-app -- xdg-terminal-exec --dir="$(omarchy-cmd-terminal-cwd)"
+bindd = SUPER ALT, RETURN, Tmux, exec, uwsm-app -- xdg-terminal-exec --dir="$(omarchy-cmd-terminal-cwd)" bash -c "tmux attach || tmux new -s Work"
+bindd = SUPER SHIFT, B, Browser, exec, omarchy-launch-browser
 bindd = SUPER SHIFT, F, File manager, exec, uwsm app -- nautilus --new-window
-bindd = SUPER SHIFT, B, Browser, exec, $browser
-bindd = SUPER SHIFT ALT, B, Browser (private), exec, $browser --private-window
-bindd = SUPER SHIFT, M, Music, exec, launch-or-focus spotify
-bindd = SUPER SHIFT, N, Editor, exec, uwsm app -- $EDITOR
-bindd = CTRL SHIFT, escape, Activity, exec, uwsm app -- ghostty -e btop
-bindd = SUPER SHIFT, O, Obsidian, exec, launch-or-focus obsidian "uwsm app -- obsidian --disable-gpu --enable-wayland-ime"
+bindd = SUPER SHIFT ALT, B, Browser (private), exec, omarchy-launch-browser --private
+bindd = SUPER SHIFT, M, Music, exec, omarchy-launch-or-focus spotify
+bindd = SUPER SHIFT, N, Editor, exec, omarchy-launch-editor
+bindd = CTRL SHIFT, escape, Activity, exec, omarchy-launch-tui btop
+bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus obsidian "uwsm app -- obsidian --disable-gpu --enable-wayland-ime"
 bindd = SUPER SHIFT, slash, Passwords, exec, uwsm app -- 1password
 
-# web apps - using firefox PWA style (can be replaced with actual PWA launcher)
-# bindd = SUPER SHIFT, A, ChatGPT, exec, $browser "https://chatgpt.com"
-# bindd = SUPER SHIFT, Y, YouTube, exec, $browser "https://youtube.com/"
+# bindd = SUPER SHIFT, A, ChatGPT, exec, omarchy-launch-webapp "https://chatgpt.com"
+# bindd = SUPER SHIFT, Y, YouTube, exec, omarchy-launch-webapp "https://youtube.com/"
 
 # Special workspace toggles
 bind = SUPER, D, togglespecialworkspace, vesktop
@@ -38,7 +38,6 @@ bind = , F12, exec, voxtype record start
 bindr = , F12, exec, voxtype record stop
 {{- end }}
 
-
 # Window rules so apps always spawn into their special workspace
 # Vesktop (Discord client)
 windowrule {
@@ -53,7 +52,6 @@ windowrule {
   match:class = ^(Vesktop)$
 }
 
-
 # Spotify
 windowrule {
   name = windowrule-3
@@ -67,7 +65,6 @@ windowrule {
   match:class = ^(Spotify)$
 }
 
-
 # Vim-style focus movement
 unbind = SUPER, H
 unbind = SUPER, J
@@ -78,22 +75,3 @@ bind = SUPER, j, movefocus, d
 bind = SUPER, k, movefocus, u
 bind = SUPER, l, movefocus, r
 
-# Screenshots & screen recording
-bindd = , Print, Screenshot (smart), exec, screenshot
-bindd = SUPER, Print, Screenshot (region), exec, screenshot region
-bindd = SUPER SHIFT, Print, Screenshot (fullscreen), exec, screenshot fullscreen
-bindd = SUPER ALT, Print, Screen record, exec, screenrecord
-bindd = SUPER ALT SHIFT, Print, Screen record (with audio), exec, screenrecord --with-desktop-audio
-
-# Audio
-bindd = SUPER, XF86AudioMute, Switch audio output, exec, audio-switch
-
-# Brightness (laptop)
-bindel = , XF86MonBrightnessUp, exec, brightness-display +5%
-bindel = , XF86MonBrightnessDown, exec, brightness-display 5%-
-
-# Window management
-bindd = SUPER, G, Toggle gaps, exec, hyprland-gaps-toggle
-
-# Lock screen
-bindd = SUPER SHIFT, L, Lock screen, exec, lock-screen
