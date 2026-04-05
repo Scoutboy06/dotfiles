@@ -2,7 +2,7 @@
 Type=Application
 Name=Battery TUI
 Comment=Display battery information in a terminal UI
-Exec=omarchy-launch-floating-terminal-with-presentation battery-tui
+Exec=omarchy-launch-floating-terminal-with-presentation ~/.local/bin/battery-tui
 Icon=battery
 Terminal=false
 Categories=Utility;System;

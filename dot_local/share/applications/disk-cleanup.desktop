@@ -2,7 +2,7 @@
 Type=Application
 Name=Disk Cleanup
 Comment=Interactive disk cleanup runner
-Exec=omarchy-launch-floating-terminal-with-presentation disk-cleanup
+Exec=omarchy-launch-floating-terminal-with-presentation ~/.local/bin/disk-cleanup
 Icon=drive-harddisk
 Terminal=false
 Categories=Utility;System;
