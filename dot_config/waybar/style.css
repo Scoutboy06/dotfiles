@@ -50,14 +50,28 @@
 }
 
 #cpu,
+#memory,
 #battery,
 #pulseaudio,
 #custom-launcher,
 #custom-update,
 #custom-screenrecording-indicator,
-#custom-whisper-dictate-indicator {
+#custom-whisper-dictate-indicator,
+#custom-gpu {
   min-width: 12px;
   margin: 0 7.5px;
+}
+
+#cpu.warning,
+#memory.warning,
+#custom-gpu.warning {
+  color: #f0a050;
+}
+
+#cpu.critical,
+#memory.critical,
+#custom-gpu.critical {
+  color: #e05555;
 }
 
 #tray {

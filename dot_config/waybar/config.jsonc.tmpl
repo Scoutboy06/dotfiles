@@ -23,6 +23,8 @@
     "network",
     "pulseaudio",
     "cpu",
+    "memory",
+    "custom/gpu",
     "battery"
   ],
   "hyprland/workspaces": {
@@ -73,8 +75,39 @@
   "cpu": {
     "interval": 5,
     "format": "󰍛",
+    "tooltip-format": "CPU: {usage}%",
+    "states": {
+{{- if .isDesktop }}
+      "warning": 70,
+      "critical": 90
+{{- else if .isLaptop }}
+      "warning": 60,
+      "critical": 85
+{{- end }}
+    },
     "on-click": "omarchy-launch-or-focus-tui btop",
     "on-click-right": "uwsm app -- xdg-terminal-exec"
+  },
+  "memory": {
+    "interval": 5,
+    "format": "",
+    "tooltip-format": "RAM: {percentage}% ({used:0.1f} GiB / {total:0.1f} GiB)",
+    "states": {
+{{- if .isDesktop }}
+      "warning": 70,
+      "critical": 90
+{{- else if .isLaptop }}
+      "warning": 60,
+      "critical": 85
+{{- end }}
+    },
+    "on-click": "omarchy-launch-or-focus-tui btop"
+  },
+  "custom/gpu": {
+    "exec": "gpu-status.sh {{ if .isDesktop }}70 90{{ else if .isLaptop }}60 85{{ end }}",
+    "interval": 5,
+    "return-type": "json",
+    "on-click": "omarchy-launch-or-focus-tui btop"
   },
   "clock": {
     "format": "{:L%A %H:%M}",
