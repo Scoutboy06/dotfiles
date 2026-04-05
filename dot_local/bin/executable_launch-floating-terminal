@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-# Launch a floating terminal, execute the command passed in, and wait for keypress on completion.
-# Used for running commands that produce output the user wants to review before closing.
-
-cmd="$*"
-exec setsid uwsm-app -- xdg-terminal-exec --app-id=floating-terminal --title=Terminal -e bash -c "$cmd; exitcode=\$?; if (( exitcode != 130 )); then echo; echo 'Press any key to close...'; read -rsn1; fi; exit \$exitcode"
