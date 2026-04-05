@@ -1,4 +1,3 @@
-{{- if .isLaptop -}}
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -193,4 +192,3 @@ main() {
 }
 
 main "$@"
-{{- end }}
