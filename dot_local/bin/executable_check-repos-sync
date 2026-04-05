@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+    printf 'Usage: %s <directory>\n' "${0##*/}" >&2
+    printf 'Check all git repos in <directory> for unsynced changes.\n' >&2
+    exit 2
+}
+
+die() {
+    printf '%s: %s\n' "${0##*/}" "$1" >&2
+    exit 1
+}
+
+[[ $# -eq 1 ]] || usage
+[[ "$1" != "-h" && "$1" != "--help" ]] || usage
+
+TARGET_DIR="$1"
+
+[[ -d "$TARGET_DIR" ]] || die "not a directory: $TARGET_DIR"
+
+summary=()
+
+for repo in "$TARGET_DIR"/*/; do
+    [[ -d "$repo" ]] || continue
+    [[ -d "$repo/.git" ]] || continue
+
+    repo_name="${repo%/}"
+    repo_name="${repo_name##*/}"
+
+    issues=()
+
+    # Check for uncommitted changes (staged, unstaged, untracked)
+    if [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]]; then
+        count=$(git -C "$repo" status --porcelain | wc -l)
+        issues+=("$count uncommitted")
+    fi
+
+    # Check for unpushed commits
+    # First check if there's an upstream configured
+    if git -C "$repo" rev-parse --abbrev-ref '@{upstream}' &>/dev/null; then
+        ahead=$(git -C "$repo" rev-list --count '@{upstream}..HEAD' 2>/dev/null || echo 0)
+        if [[ "$ahead" -gt 0 ]]; then
+            issues+=("$ahead unpushed")
+        fi
+    else
+        # No upstream; check if there are any commits at all
+        if git -C "$repo" rev-parse HEAD &>/dev/null; then
+            # Has commits but no upstream - likely an unpushed branch
+            issues+=("no upstream")
+        fi
+    fi
+
+    if [[ ${#issues[@]} -gt 0 ]]; then
+        issue_str=$(IFS=', '; printf '%s' "${issues[*]}")
+        summary+=("$repo_name: $issue_str")
+    fi
+done
+
+if [[ ${#summary[@]} -gt 0 ]]; then
+    if [[ ${#summary[@]} -le 3 ]]; then
+        body=$(printf '%s\n' "${summary[@]}")
+    else
+        body=$(printf '%s\n' "${summary[0]}" "${summary[1]}")
+        remaining=$(( ${#summary[@]} - 2 ))
+        body=$(printf '%s\n(...and %d more)' "$body" "$remaining")
+    fi
+    notify-send --urgency=critical "Repos not synced" "$body"
+fi

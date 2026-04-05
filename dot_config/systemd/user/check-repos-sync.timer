@@ -1,0 +1,9 @@
+[Unit]
+Description=Check git repos for unsynced changes on boot
+
+[Timer]
+OnBootSec=2m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

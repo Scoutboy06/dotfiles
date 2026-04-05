@@ -1,0 +1,9 @@
+[Unit]
+Description=Check git repos for unsynced changes
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/check-repos-sync %h/p
+
+# Ensure notify-send can reach the user bus when started by a timer.
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
