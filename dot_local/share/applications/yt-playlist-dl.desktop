@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=YouTube Playlist Downloader
+Comment=Download videos from YouTube playlists with deduplication
+Exec=~/.local/bin/yt-playlist-dl
+Icon=video-x-generic
+Terminal=false
+Categories=AudioVideo;Network;
+Keywords=youtube;video;download;playlist;

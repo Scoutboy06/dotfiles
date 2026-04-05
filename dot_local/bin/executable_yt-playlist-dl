@@ -1,0 +1,678 @@
+#!/usr/bin/env python3
+"""
+YouTube Video Workflow Tool - MVP
+Download videos from playlists with deduplication, quality checks, and hardlinks.
+Cross-platform (Linux/Windows) GUI using PyQt6.
+"""
+
+import sys
+import json
+import os
+import subprocess
+import hashlib
+from pathlib import Path
+from datetime import datetime
+from dataclasses import dataclass, field, asdict
+from typing import Optional, List, Dict
+import threading
+import shutil
+
+from PyQt6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QPushButton,
+    QLabel,
+    QTextEdit,
+    QProgressBar,
+    QMessageBox,
+)
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QObject
+from PyQt6.QtGui import QFont, QColor, QTextCursor
+
+
+# ============================================================================
+# DATA MODELS
+# ============================================================================
+
+
+@dataclass
+class VideoRecord:
+    """Track a video in the cache manifest."""
+
+    video_id: str
+    title: str
+    url: str
+    filename: str
+    download_date: str
+    checksum: str
+    duration_seconds: Optional[int] = None
+    file_size_bytes: Optional[int] = None
+    status: str = "OK"  # OK, CORRUPTED, MISSING
+    error_message: str = ""
+
+
+@dataclass
+class Manifest:
+    """Cache manifest - tracks all downloaded videos."""
+
+    videos: Dict[str, VideoRecord] = field(default_factory=dict)
+
+    def to_json(self) -> str:
+        return json.dumps(
+            {vid: asdict(rec) for vid, rec in self.videos.items()}, indent=2
+        )
+
+    @staticmethod
+    def from_json(data: str) -> "Manifest":
+        m = Manifest()
+        try:
+            videos = json.loads(data)
+            for vid, rec in videos.items():
+                m.videos[vid] = VideoRecord(**rec)
+        except:
+            pass
+        return m
+
+    def save(self, path: Path):
+        path.write_text(self.to_json())
+
+    @staticmethod
+    def load(path: Path) -> "Manifest":
+        if not path.exists():
+            return Manifest()
+        return Manifest.from_json(path.read_text())
+
+
+# ============================================================================
+# CORE LOGIC - DOWNLOADER & QUALITY CHECKS
+# ============================================================================
+
+
+class DownloadError(Exception):
+    pass
+
+
+def extract_ytdlp_error(stderr: str) -> str:
+    """Parse yt-dlp error and return human-readable message."""
+    if "Age-restricted" in stderr or "age_restricted" in stderr:
+        return "Video is age-restricted (sign in required)"
+    if "not available" in stderr:
+        return "Video not available in your region"
+    if "Private video" in stderr:
+        return "Video is private"
+    if "Deleted video" in stderr:
+        return "Video has been deleted"
+    if "member-only" in stderr:
+        return "Video is members-only"
+    # Extract first line of error
+    lines = stderr.split("\n")
+    for line in lines:
+        if "ERROR" in line or "error" in line:
+            return line.strip()
+    return "Unknown error (check log)"
+
+
+def get_video_id_from_url(url: str) -> Optional[str]:
+    """Extract video ID from YouTube URL."""
+    import re
+
+    # Handle playlist URLs - extract first video or use playlist ID
+    if "playlist?list=" in url:
+        match = re.search(r"list=([a-zA-Z0-9_-]+)", url)
+        return match.group(1) if match else None
+    # Handle video URLs
+    match = re.search(
+        r"(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})", url
+    )
+    return match.group(1) if match else None
+
+
+def get_ffprobe_info(filepath: Path) -> Dict:
+    """Get video info using ffprobe."""
+    try:
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration,size : stream=codec_type,codec_name",
+            "-of",
+            "json",
+            str(filepath),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            return {
+                "duration": float(data.get("format", {}).get("duration", 0)),
+                "size": int(data.get("format", {}).get("size", 0)),
+                "has_video_stream": any(
+                    s.get("codec_type") == "video" for s in data.get("streams", [])
+                ),
+                "codec": data.get("streams", [{}])[0].get("codec_name", "unknown")
+                if data.get("streams")
+                else "unknown",
+            }
+    except Exception as e:
+        return {"error": str(e)}
+    return {}
+
+
+def calculate_checksum(filepath: Path, chunk_size: int = 8192) -> str:
+    """Calculate SHA256 checksum of file."""
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(chunk_size), b""):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+    except:
+        return ""
+
+
+def quality_check_file(filepath: Path) -> tuple[bool, Dict]:
+    """
+    Validate downloaded file.
+    Returns (is_valid, details_dict)
+    """
+    details = {"filepath": str(filepath)}
+
+    # Check existence
+    if not filepath.exists():
+        return False, {**details, "error": "File does not exist"}
+
+    # Check size
+    size = filepath.stat().st_size
+    details["size_mb"] = round(size / (1024**2), 2)
+    if size == 0:
+        return False, {**details, "error": "File is empty (0 bytes)"}
+
+    # Get ffprobe info
+    info = get_ffprobe_info(filepath)
+    if "error" in info:
+        return False, {**details, "error": f"ffprobe failed: {info['error']}"}
+
+    details.update(info)
+
+    # Check duration
+    duration = info.get("duration", 0)
+    if duration <= 0:
+        return False, {**details, "error": "No valid video stream or zero duration"}
+
+    details["duration_formatted"] = f"{int(duration // 60)}:{int(duration % 60):02d}"
+
+    # Check video stream exists
+    if not info.get("has_video_stream"):
+        return False, {**details, "error": "No video stream found"}
+
+    # Calculate checksum
+    checksum = calculate_checksum(filepath)
+    details["checksum"] = checksum[:16]  # First 16 chars for display
+
+    return True, details
+
+
+def cleanup_partial_downloads(video_id: str, cache_dir: Path):
+    """Remove fragments and partial files from failed downloads."""
+    # Look for any files with this video_id in the name that are fragments
+    cleaned = []
+    for ext in [".f*", ".part*", "*.ytdl", "*.temp"]:
+        import glob
+
+        pattern = str(cache_dir / f"*{video_id}*{ext}")
+        for fpath in glob.glob(pattern):
+            try:
+                Path(fpath).unlink()
+                cleaned.append(fpath)
+            except:
+                pass
+    return cleaned
+
+
+def download_playlist_videos(
+    playlist_url: str,
+    cache_dir: Path,
+    manifest: Manifest,
+    progress_callback,
+    log_callback,
+) -> tuple[List[str], List[str], List[str]]:
+    """
+    Download all videos from playlist.
+    progress_callback(current, total, video_name)
+    log_callback(message)
+    Returns (downloaded_list, deduped_list, failed_list)
+    """
+    downloaded = []
+    deduped = []
+    failed = []
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get playlist video URLs
+    log_callback("Fetching playlist information...")
+    try:
+        cmd = ["yt-dlp", "--flat-playlist", "-j", playlist_url]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            log_callback(
+                f"Failed to fetch playlist: {extract_ytdlp_error(result.stderr)}"
+            )
+            return downloaded, deduped, failed
+
+        # Parse JSON output
+        video_urls = []
+        for line in result.stdout.strip().split("\n"):
+            if line.strip():
+                try:
+                    entry = json.loads(line)
+                    if "url" in entry:
+                        video_urls.append(entry["url"])
+                except:
+                    pass
+
+        if not video_urls:
+            log_callback("No videos found in playlist")
+            return downloaded, deduped, failed
+
+        log_callback(f"Found {len(video_urls)} videos in playlist\n")
+
+        # Download each video
+        for idx, video_url in enumerate(video_urls):
+            progress_callback(idx + 1, len(video_urls), "Processing...")
+
+            # Extract video ID
+            video_id = get_video_id_from_url(video_url)
+            if not video_id:
+                log_callback(f"Could not extract video ID from {video_url}")
+                failed.append(video_url)
+                continue
+
+            # Check if already in cache
+            if video_id in manifest.videos:
+                record = manifest.videos[video_id]
+                cached_file = cache_dir / record.filename
+                if cached_file.exists():
+                    log_callback(
+                        f"[{idx + 1}/{len(video_urls)}] {record.title[:50]}... (already in cache)"
+                    )
+                    deduped.append(video_url)
+                    continue
+                else:
+                    log_callback(
+                        f"[{idx + 1}/{len(video_urls)}] {record.title[:50]}... cached but file missing, re-downloading"
+                    )
+                    del manifest.videos[video_id]
+
+            # Download the video
+            log_callback(f"[{idx + 1}/{len(video_urls)}] Downloading...")
+
+            output_template = str(cache_dir / "%(id)s_%(title)s.%(ext)s")
+            cmd = [
+                "yt-dlp",
+                "-f",
+                "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
+                "--merge-output-format",
+                "mp4",
+                "-o",
+                output_template,
+                video_url,
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+            if result.returncode != 0:
+                log_callback(
+                    f"Download failed: {extract_ytdlp_error(result.stderr)}"
+                )
+                cleanup_partial_downloads(video_id, cache_dir)
+                failed.append(video_url)
+                continue
+
+            # Find downloaded file
+            import glob
+
+            pattern = str(cache_dir / f"{video_id}_*")
+            downloaded_files = glob.glob(pattern)
+            if not downloaded_files:
+                log_callback(f"Could not find downloaded file for {video_id}")
+                failed.append(video_url)
+                continue
+
+            filepath = Path(downloaded_files[0])
+            log_callback(f"  Validating quality...")
+
+            # Quality check
+            is_valid, details = quality_check_file(filepath)
+            if not is_valid:
+                log_callback(
+                    f"Quality check failed: {details.get('error', 'Unknown error')}"
+                )
+                try:
+                    filepath.unlink()
+                except:
+                    pass
+                failed.append(video_url)
+                continue
+
+            # Record in manifest
+            checksum = details.get("checksum", "")
+            duration = details.get("duration", 0)
+            size = details.get("size_mb", 0)
+
+            manifest.videos[video_id] = VideoRecord(
+                video_id=video_id,
+                title=filepath.stem[:60],
+                url=video_url,
+                filename=filepath.name,
+                download_date=datetime.now().isoformat(),
+                checksum=checksum,
+                duration_seconds=int(duration),
+                file_size_bytes=int(size * 1024 * 1024),
+                status="OK",
+            )
+
+            log_callback(
+                f"Done: {filepath.name} ({details['duration_formatted']}, {details['size_mb']} MB)"
+            )
+            downloaded.append(video_url)
+
+    except subprocess.TimeoutExpired:
+        log_callback("Download timeout (playlist too large or network issue)")
+    except Exception as e:
+        log_callback(f"Error: {str(e)}")
+
+    return downloaded, deduped, failed
+
+
+def create_hardlinks(
+    video_ids: List[str],
+    manifest: Manifest,
+    cache_dir: Path,
+    project_dir: Path,
+    log_callback,
+) -> List[Path]:
+    """Create hardlinks from project folder to cache. Returns list of linked files."""
+    project_video_dir = project_dir / "videos"
+    project_video_dir.mkdir(parents=True, exist_ok=True)
+
+    linked_files = []
+    for vid in video_ids:
+        if vid not in manifest.videos:
+            continue
+
+        record = manifest.videos[vid]
+        src = cache_dir / record.filename
+        dst = project_video_dir / record.filename
+
+        if not src.exists():
+            log_callback(f"Source file missing: {record.filename}")
+            continue
+
+        try:
+            # Remove existing hardlink if present
+            if dst.exists():
+                dst.unlink()
+
+            # Create hardlink
+            os.link(src, dst)
+            linked_files.append(dst)
+            log_callback(f"Linked: {record.filename}")
+        except Exception as e:
+            log_callback(f"Failed to create hardlink: {str(e)}")
+
+    return linked_files
+
+
+# ============================================================================
+# WORKER THREADS
+# ============================================================================
+
+
+class DownloadWorker(QObject):
+    """Worker thread for downloads."""
+
+    progress = pyqtSignal(int, int, str)  # current, total, message
+    log = pyqtSignal(str)
+    finished = pyqtSignal(bool, int, int, int)  # success, downloaded, deduped, failed
+
+    def __init__(self, playlist_url: str, cache_dir: Path, manifest: Manifest):
+        super().__init__()
+        self.playlist_url = playlist_url
+        self.cache_dir = cache_dir
+        self.manifest = manifest
+
+    def run(self):
+        downloaded, deduped, failed = download_playlist_videos(
+            self.playlist_url,
+            self.cache_dir,
+            self.manifest,
+            self.progress.emit,
+            self.log.emit,
+        )
+
+        success = len(failed) == 0
+        self.finished.emit(success, len(downloaded), len(deduped), len(failed))
+
+
+# ============================================================================
+# GUI APPLICATION
+# ============================================================================
+
+
+class VideoWorkflowApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("YouTube Video Workflow Tool")
+        self.setGeometry(100, 100, 1000, 700)
+
+        # Configuration
+        self.config_dir = Path.home() / ".video_workflow"
+        self.config_dir.mkdir(exist_ok=True)
+        self.cache_dir = self.config_dir / "cache"
+        self.projects_dir = Path.home() / "Videos" / "noels-mellovideor"
+        self.manifest_file = self.config_dir / "manifest.json"
+
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.projects_dir.mkdir(parents=True, exist_ok=True)
+
+        self.manifest = Manifest.load(self.manifest_file)
+
+        # UI
+        self.init_ui()
+
+    def init_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+
+        # Title
+        title = QLabel("YouTube Video Downloader")
+        title_font = QFont()
+        title_font.setPointSize(16)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        layout.addWidget(title)
+
+        # Input section
+        input_layout = QVBoxLayout()
+
+        input_layout.addWidget(QLabel("Playlist URL:"))
+        self.playlist_input = QLineEdit()
+        self.playlist_input.setPlaceholderText(
+            "https://www.youtube.com/playlist?list=PLxxx"
+        )
+        input_layout.addWidget(self.playlist_input)
+
+        input_layout.addWidget(QLabel("Project Name:"))
+        self.project_name_input = QLineEdit()
+        self.project_name_input.setPlaceholderText("e.g., Gaming Highlights")
+        input_layout.addWidget(self.project_name_input)
+
+        layout.addLayout(input_layout)
+
+        # Download button
+        download_btn = QPushButton("Start Download")
+        download_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+        """)
+        download_btn.clicked.connect(self.start_download)
+        layout.addWidget(download_btn)
+
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        layout.addWidget(self.progress_bar)
+
+        # Status label
+        self.status_label = QLabel("Ready")
+        layout.addWidget(self.status_label)
+
+        # Log output
+        layout.addWidget(QLabel("Log:"))
+        self.log_output = QTextEdit()
+        self.log_output.setReadOnly(True)
+        self.log_output.setMinimumHeight(100)
+        self.log_output.setFont(QFont("Courier", 9))
+        layout.addWidget(self.log_output, 1)  # stretch factor 1 to take available space
+
+        # Info section
+        info_label = QLabel(
+            f"Cache: {self.cache_dir}\n"
+            f"Projects: {self.projects_dir}\n"
+            f"Cached videos: {len(self.manifest.videos)}"
+        )
+        info_label.setStyleSheet("color: gray; font-size: 10px;")
+        info_label.setMaximumHeight(50)
+        layout.addWidget(info_label, 0)  # stretch factor 0 to keep fixed size
+
+        central_widget.setLayout(layout)
+
+    def start_download(self):
+        playlist_url = self.playlist_input.text().strip()
+        project_name = self.project_name_input.text().strip()
+
+        if not playlist_url:
+            QMessageBox.warning(self, "Input Error", "Please enter a playlist URL")
+            return
+
+        if not project_name:
+            QMessageBox.warning(self, "Input Error", "Please enter a project name")
+            return
+
+        # Create project folder
+        self.current_project_path = self.projects_dir / project_name
+        self.current_project_path.mkdir(parents=True, exist_ok=True)
+
+        # Clear log
+        self.log_output.clear()
+        self.log("Project folder: " + str(self.current_project_path))
+        self.log("Starting download...\n")
+
+        # Disable input
+        self.playlist_input.setEnabled(False)
+        self.project_name_input.setEnabled(False)
+
+        # Start worker thread
+        self.worker = DownloadWorker(playlist_url, self.cache_dir, self.manifest)
+        self.thread = QThread()
+        self.worker.moveToThread(self.thread)
+
+        self.worker.progress.connect(self.on_progress)
+        self.worker.log.connect(self.log)
+        self.worker.finished.connect(self.on_download_finished)
+
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
+
+    def on_progress(self, current: int, total: int, message: str):
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(current)
+        self.status_label.setText(f"Progress: {current}/{total} {message}")
+
+    def log(self, message: str):
+        cursor = self.log_output.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertText(message + "\n")
+        self.log_output.setTextCursor(cursor)
+        self.log_output.ensureCursorVisible()
+
+    def on_download_finished(
+        self, success: bool, downloaded: int, deduped: int, failed: int
+    ):
+        self.thread.quit()
+        self.thread.wait()
+
+        # Save manifest
+        self.manifest.save(self.manifest_file)
+
+        # Get video IDs for hardlinking
+        project_path = self.current_project_path
+
+        video_ids = [
+            vid
+            for vid, rec in self.manifest.videos.items()
+            if vid in [rec.video_id for rec in self.manifest.videos.values()]
+        ]
+
+        # Create hardlinks
+        self.log("\nCreating hardlinks...")
+        linked = create_hardlinks(
+            video_ids, self.manifest, self.cache_dir, project_path, self.log
+        )
+
+        # Summary
+        self.log("\n" + "=" * 60)
+        self.log(f"Downloads: {downloaded}")
+        self.log(f"Deduplicated (from cache): {deduped}")
+        self.log(f"Failed: {failed}")
+        self.log(f"Hardlinks created: {len(linked)}")
+        self.log("=" * 60)
+
+        if success:
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Download complete!\n\n"
+                f"Downloaded: {downloaded}\n"
+                f"From cache: {deduped}\n"
+                f"Failed: {failed}\n\n"
+                f"Project: {project_path}",
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                "Partial Success",
+                f"Download completed with errors:\n\n"
+                f"Downloaded: {downloaded}\n"
+                f"From cache: {deduped}\n"
+                f"Failed: {failed}\n\n"
+                f"Check the log for details.",
+            )
+
+        # Re-enable input
+        self.playlist_input.setEnabled(True)
+        self.project_name_input.setEnabled(True)
+        self.progress_bar.setValue(0)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = VideoWorkflowApp()
+    window.show()
+    sys.exit(app.exec())

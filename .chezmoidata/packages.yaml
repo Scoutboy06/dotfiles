@@ -77,6 +77,11 @@ common:
   # Extra utilities
   - gnome-disk-utility
 
+  # YouTube playlist downloader
+  - python-pyqt6
+  - yt-dlp
+  - ffmpeg
+
 
 aur:
   # Terminal
