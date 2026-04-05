@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Disk Cleanup
+Comment=Interactive disk cleanup runner
+Exec=omarchy-launch-floating-terminal-with-presentation disk-cleanup
+Icon=drive-harddisk
+Terminal=false
+Categories=Utility;System;
+Keywords=disk;cleanup;cache;prune;
