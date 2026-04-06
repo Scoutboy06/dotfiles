@@ -10,13 +10,10 @@ sourceDir = "/home/elias/p/dotfiles"
   isDesktop = {{ $isDesktop }}
   isLaptop = {{ $isLaptop }}
   isOmarchy = {{ $isOmarchy }}
-
 {{- if $isDesktop }}
-  # Desktop-specific
   monitorScale = 1.0
   primaryMonitor = "DP-1"
 {{- else if $isLaptop }}
-  # Laptop-specific
   monitorScale = 1.25
   primaryMonitor = "eDP-1"
 {{- end }}
