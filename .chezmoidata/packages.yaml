@@ -82,6 +82,9 @@ common:
   - yt-dlp
   - ffmpeg
 
+  # package-persist: YAML parsing with comment preservation
+  - python-ruamel-yaml
+
 
 aur:
   # Terminal

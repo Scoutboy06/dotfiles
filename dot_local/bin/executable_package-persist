@@ -1,0 +1,403 @@
+#!/usr/bin/env python3
+"""Manage persistence of manually installed packages into dotfiles.
+
+Tracks packages installed via pacman/yay and prompts the user to decide
+whether to persist them to .chezmoidata/packages.yaml or ignore them.
+
+Usage:
+    package-persist check    # Check for new packages, notify if found
+    package-persist decide   # Interactive TUI to decide on packages
+    package-persist status   # Show current state
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+
+try:
+    from ruamel.yaml import YAML
+except ImportError:
+    print("Error: python-ruamel-yaml is required", file=sys.stderr)
+    print("Install with: sudo pacman -S python-ruamel-yaml", file=sys.stderr)
+    sys.exit(1)
+
+
+# Paths
+STATE_DIR = Path.home() / ".local" / "share" / "package-persist"
+STATE_FILE = STATE_DIR / "state.json"
+
+
+def get_packages_yaml_path() -> Path:
+    """Get path to packages.yaml in chezmoi source directory."""
+    try:
+        result = subprocess.run(
+            ["chezmoi", "source-path"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        source_dir = Path(result.stdout.strip())
+        return source_dir / ".chezmoidata" / "packages.yaml"
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"Error: could not get chezmoi source path: {e}", file=sys.stderr)
+        print("Make sure chezmoi is installed and configured.", file=sys.stderr)
+        sys.exit(1)
+
+
+@dataclass
+class State:
+    """Persistent state for package tracking.
+    
+    Only tracks ignored packages. Persisted packages are derived from
+    packages.yaml which is the source of truth.
+    """
+
+    last_check: str = ""
+    ignored_pacman: list[str] = field(default_factory=list)
+    ignored_aur: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "last_check": self.last_check,
+            "ignored_pacman": self.ignored_pacman,
+            "ignored_aur": self.ignored_aur,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> State:
+        return cls(
+            last_check=data.get("last_check", ""),
+            ignored_pacman=data.get("ignored_pacman", []),
+            ignored_aur=data.get("ignored_aur", []),
+        )
+
+
+def load_state() -> State:
+    """Load state from disk, or return empty state if not found."""
+    if not STATE_FILE.exists():
+        return State()
+    try:
+        data = json.loads(STATE_FILE.read_text())
+        return State.from_dict(data)
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Warning: corrupted state file, starting fresh: {e}", file=sys.stderr)
+        return State()
+
+
+def save_state(state: State) -> None:
+    """Save state to disk."""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state.to_dict(), indent=2) + "\n")
+
+
+def run_cmd(cmd: list[str]) -> list[str]:
+    """Run command and return output lines."""
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
+
+
+def get_explicit_packages() -> set[str]:
+    """Get all explicitly installed packages (not dependencies)."""
+    lines = run_cmd(["pacman", "-Qe"])
+    return {line.split()[0] for line in lines}
+
+
+def get_aur_packages() -> set[str]:
+    """Get all foreign (AUR) packages."""
+    lines = run_cmd(["pacman", "-Qm"])
+    return {line.split()[0] for line in lines}
+
+
+def load_packages_yaml() -> tuple[set[str], set[str]]:
+    """Load packages from packages.yaml, return (pacman_pkgs, aur_pkgs)."""
+    packages_yaml = get_packages_yaml_path()
+    if not packages_yaml.exists():
+        return set(), set()
+
+    yaml = YAML()
+    data = yaml.load(packages_yaml)
+
+    pacman_pkgs: set[str] = set()
+    aur_pkgs: set[str] = set()
+
+    # Collect all pacman packages (common, desktop, laptop, omarchy, optional)
+    for key in ["common", "desktop", "laptop", "omarchy", "optional"]:
+        if key in data and data[key]:
+            pacman_pkgs.update(data[key])
+
+    # AUR packages
+    if "aur" in data and data["aur"]:
+        aur_pkgs.update(data["aur"])
+
+    return pacman_pkgs, aur_pkgs
+
+
+def get_undecided_packages(state: State) -> tuple[list[str], list[str]]:
+    """Get packages that haven't been decided on yet.
+
+    Returns (undecided_pacman, undecided_aur).
+    
+    A package is undecided if it's:
+    - Explicitly installed on the system
+    - Not in packages.yaml (source of truth for persisted)
+    - Not in the ignored list in state.json
+    """
+    explicit = get_explicit_packages()
+    aur = get_aur_packages()
+    yaml_pacman, yaml_aur = load_packages_yaml()
+
+    # Pacman packages: explicitly installed, not AUR, not in yaml, not ignored
+    pacman_only = explicit - aur
+    known_pacman = yaml_pacman | set(state.ignored_pacman)
+    undecided_pacman = sorted(pacman_only - known_pacman)
+
+    # AUR packages: not in yaml, not ignored
+    known_aur = yaml_aur | set(state.ignored_aur)
+    undecided_aur = sorted(aur - known_aur)
+
+    return undecided_pacman, undecided_aur
+
+
+def notify(title: str, body: str, action: str | None = None) -> None:
+    """Send a desktop notification."""
+    cmd = ["notify-send", title, body]
+    if action:
+        cmd.extend(["--action", action])
+    subprocess.run(cmd, check=False)
+
+
+def cmd_check(args: argparse.Namespace) -> int:
+    """Check for new undecided packages and notify if found."""
+    state = load_state()
+    undecided_pacman, undecided_aur = get_undecided_packages(state)
+
+    total = len(undecided_pacman) + len(undecided_aur)
+
+    if total == 0:
+        if args.verbose:
+            print("No new packages to decide on.")
+        return 0
+
+    # Update last check time
+    state.last_check = datetime.now().isoformat()
+    save_state(state)
+
+    # Build notification message
+    parts = []
+    if undecided_pacman:
+        parts.append(f"{len(undecided_pacman)} pacman")
+    if undecided_aur:
+        parts.append(f"{len(undecided_aur)} AUR")
+    msg = f"{' + '.join(parts)} package(s) awaiting decision"
+
+    notify(
+        "Package Persistence",
+        f"{msg}\nRun: package-persist decide",
+    )
+
+    if args.verbose:
+        print(f"Notification sent: {msg}")
+
+    return 0
+
+
+def cmd_decide(args: argparse.Namespace) -> int:
+    """Interactive TUI to decide on packages."""
+    state = load_state()
+    undecided_pacman, undecided_aur = get_undecided_packages(state)
+
+    if not undecided_pacman and not undecided_aur:
+        print("No packages to decide on.")
+        return 0
+
+    # Prepare items for fzf: prefix with [pacman] or [aur]
+    items = []
+    for pkg in undecided_pacman:
+        items.append(f"[pacman] {pkg}")
+    for pkg in undecided_aur:
+        items.append(f"[aur] {pkg}")
+
+    print("Select packages to PERSIST (unselected will be ignored):")
+    print("Use TAB to select, ENTER to confirm, ESC to cancel\n")
+
+    # Run fzf with multi-select
+    try:
+        result = subprocess.run(
+            [
+                "fzf",
+                "--multi",
+                "--header=TAB: select | ENTER: confirm | ESC: cancel",
+                "--prompt=Persist: ",
+                "--bind=ctrl-a:select-all,ctrl-d:deselect-all",
+            ],
+            input="\n".join(items),
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        print("Error: fzf is required for interactive mode", file=sys.stderr)
+        print("Install with: sudo pacman -S fzf", file=sys.stderr)
+        return 1
+
+    if result.returncode == 130:  # ESC pressed
+        print("Cancelled.")
+        return 0
+
+    # Parse selected items
+    selected = set(result.stdout.strip().split("\n")) if result.stdout.strip() else set()
+
+    persist_pacman = []
+    persist_aur = []
+    ignore_pacman = []
+    ignore_aur = []
+
+    for pkg in undecided_pacman:
+        if f"[pacman] {pkg}" in selected:
+            persist_pacman.append(pkg)
+        else:
+            ignore_pacman.append(pkg)
+
+    for pkg in undecided_aur:
+        if f"[aur] {pkg}" in selected:
+            persist_aur.append(pkg)
+        else:
+            ignore_aur.append(pkg)
+
+    # Update packages.yaml with persisted packages
+    if persist_pacman or persist_aur:
+        update_packages_yaml(persist_pacman, persist_aur)
+
+    # Update state (only track ignored packages)
+    state.ignored_pacman.extend(ignore_pacman)
+    state.ignored_aur.extend(ignore_aur)
+    state.last_check = datetime.now().isoformat()
+    save_state(state)
+
+    # Print summary
+    print("\nSummary:")
+    if persist_pacman:
+        print(f"  Persisted (pacman): {', '.join(persist_pacman)}")
+    if persist_aur:
+        print(f"  Persisted (AUR): {', '.join(persist_aur)}")
+    if ignore_pacman:
+        print(f"  Ignored (pacman): {', '.join(ignore_pacman)}")
+    if ignore_aur:
+        print(f"  Ignored (AUR): {', '.join(ignore_aur)}")
+
+    if persist_pacman or persist_aur:
+        packages_yaml = get_packages_yaml_path()
+        print(f"\nUpdated: {packages_yaml}")
+        print("Changes are already in dotfiles source. Commit when ready.")
+
+    return 0
+
+
+def update_packages_yaml(pacman_pkgs: list[str], aur_pkgs: list[str]) -> None:
+    """Add packages to packages.yaml, preserving comments and formatting."""
+    packages_yaml = get_packages_yaml_path()
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=2, offset=2)
+
+    data = yaml.load(packages_yaml)
+
+    # Add pacman packages to 'common' section
+    if pacman_pkgs:
+        if "common" not in data or data["common"] is None:
+            data["common"] = []
+        for pkg in sorted(pacman_pkgs):
+            if pkg not in data["common"]:
+                data["common"].append(pkg)
+
+    # Add AUR packages to 'aur' section
+    if aur_pkgs:
+        if "aur" not in data or data["aur"] is None:
+            data["aur"] = []
+        for pkg in sorted(aur_pkgs):
+            if pkg not in data["aur"]:
+                data["aur"].append(pkg)
+
+    with packages_yaml.open("w") as f:
+        yaml.dump(data, f)
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    """Show current state."""
+    state = load_state()
+    undecided_pacman, undecided_aur = get_undecided_packages(state)
+    yaml_pacman, yaml_aur = load_packages_yaml()
+
+    print("Package Persist Status")
+    print("=" * 40)
+
+    if state.last_check:
+        print(f"Last check: {state.last_check}")
+    else:
+        print("Last check: never")
+
+    print(f"\nUndecided packages:")
+    print(f"  Pacman: {len(undecided_pacman)}")
+    if undecided_pacman and args.verbose:
+        for pkg in undecided_pacman:
+            print(f"    - {pkg}")
+    print(f"  AUR: {len(undecided_aur)}")
+    if undecided_aur and args.verbose:
+        for pkg in undecided_aur:
+            print(f"    - {pkg}")
+
+    print(f"\nPersisted (in packages.yaml):")
+    print(f"  Pacman: {len(yaml_pacman)}")
+    print(f"  AUR: {len(yaml_aur)}")
+
+    print(f"\nIgnored:")
+    print(f"  Pacman: {len(state.ignored_pacman)}")
+    print(f"  AUR: {len(state.ignored_aur)}")
+
+    return 0
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Manage persistence of manually installed packages into dotfiles."
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    check_parser = subparsers.add_parser(
+        "check", help="Check for new packages, notify if found"
+    )
+    check_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Verbose output"
+    )
+
+    subparsers.add_parser("decide", help="Interactive TUI to decide on packages")
+
+    status_parser = subparsers.add_parser("status", help="Show current state")
+    status_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show package names"
+    )
+
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+
+    if args.command == "check":
+        return cmd_check(args)
+    elif args.command == "decide":
+        return cmd_decide(args)
+    elif args.command == "status":
+        return cmd_status(args)
+
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

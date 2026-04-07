@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for new packages to persist
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/package-persist check
+
+# Ensure notify-send can reach the user bus when started by a timer.
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
