@@ -1,0 +1,10 @@
+# Custom packages built from remote PKGBUILDs
+# Used by run_onchange_before_install-custom-packages.sh.tmpl
+#
+# Each entry should have:
+#   name: package name (used for build directory)
+#   url: git URL to clone from
+
+custom_packages:
+  - name: gitm
+    url: https://github.com/Scoutboy06/gitm.git
