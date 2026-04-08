@@ -1,3 +1,9 @@
+{{- $lockTimeout := 1200 -}}
+{{- $screenTimeout := 1800 -}}
+{{- if .isDesktop -}}
+{{- $lockTimeout = 2400 -}}
+{{- $screenTimeout = 3600 -}}
+{{- end -}}
 general {
     lock_cmd = pidof hyprlock || hyprlock                  # lock screen (skip if already running)
     before_sleep_cmd = loginctl lock-session               # lock before suspend.
@@ -11,18 +17,18 @@ general {
 # }
 
 listener {
-    timeout = 1200                      # 20min
+    timeout = {{ $lockTimeout }}                      # {{ if .isDesktop }}40min{{ else }}20min{{ end }}
     on-timeout = loginctl lock-session # lock screen when timeout has passed
 }
 
 listener {
-    timeout = 1800                                           # 30min
+    timeout = {{ $screenTimeout }}                                           # {{ if .isDesktop }}60min{{ else }}30min{{ end }}
     on-timeout = brightnessctl -sd '*::kbd_backlight' set 0  # save state and turn off keyboard backlight
     on-resume = brightnessctl -rd '*::kbd_backlight'         # restore keyboard backlight
 }
 
 listener {
-    timeout = 1800                                           # 30min
+    timeout = {{ $screenTimeout }}                                           # {{ if .isDesktop }}60min{{ else }}30min{{ end }}
     on-timeout = hyprctl dispatch dpms off                   # screen off when timeout has passed
     on-resume = hyprctl dispatch dpms on && brightnessctl -r # screen on when activity is detected
 }

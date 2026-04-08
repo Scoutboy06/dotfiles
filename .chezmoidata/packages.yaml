@@ -89,7 +89,22 @@ common:
   - python-ruamel-yaml
 
 
+  - bacon
+  - chezmoi
+  - nano
+  - ntfs-3g
+  - shotcut
+  - showmethekey
+  - spotify
+  - steam
+  - sublime-text-4
+  - texlive-bin
+  - texlive-latex
+  - texlive-latexextra
 aur:
+  - brave-bin
+  - opentabletdriver
+  - vesktop-bin
   # Terminal
   # - ghostty
 
