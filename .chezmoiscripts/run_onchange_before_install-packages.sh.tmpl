@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# chezmoi:template:left-delimiter="# {{" right-delimiter="}}"
+# chezmoi:template:left-delimiter="{{" right-delimiter="}}"
 #
 # Install packages from packages.yaml
 # This script runs automatically when packages.yaml changes (run_onchange_)
 #
-# packages.yaml hash: # {{ include ".chezmoidata/packages.yaml" | sha256sum }}
+# packages.yaml hash: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
 
 set -euo pipefail
 
@@ -60,62 +60,37 @@ install_aur() {
 main() {
     log_info "Installing packages from packages.yaml..."
 
-    # Common packages (pacman)
-    local common_packages=(
-# {{- range .common }}
-        "# {{ . }}"
-# {{- end }}
-    )
+    # --- DYNAMIC PACKAGE ARRAY SELECTION FOR ANNOTATED LIST FORMAT ---
+    # Determine device and os for filtering (device: 'all'|'desktop'|'laptop', os: 'all'|'omarchy').
+    local device="all"
+    local distro="all"
+{{ if .isDesktop }}
+    device="desktop"
+{{ else if .isLaptop }}
+    device="laptop"
+{{ end }}
+{{ if .isOmarchy }}
+    distro="omarchy"
+{{ end }}
 
-    # AUR packages
-    local aur_packages=(
-# {{- range .aur }}
-        "# {{ . }}"
-# {{- end }}
-    )
+    # Populate arrays: pacman_packages and aur_packages.
+{{ $pkgs := (include ".chezmoidata/packages.yaml" | fromYaml).packages }}
+    local pacman_packages=()
+    local aur_packages=()
+{{ range $pkg := $pkgs }}
+{{ $matchesDevice := or (eq $pkg.device "all") (and (eq $pkg.device "desktop") $.isDesktop) (and (eq $pkg.device "laptop") $.isLaptop) }}
+{{ $matchesOS := or (eq $pkg.os "all") (and (eq $pkg.os "omarchy") $.isOmarchy) }}
+{{ if and (eq $pkg.source "pacman") $matchesDevice $matchesOS }}
+    pacman_packages+=("{{ $pkg.name }}")
+{{ end }}
+{{ if and (eq $pkg.source "aur") $matchesDevice $matchesOS }}
+    aur_packages+=("{{ $pkg.name }}")
+{{ end }}
+{{ end }}
 
-# {{- if .isDesktop }}
-    # Desktop-specific packages
-    local machine_packages=(
-# {{- range .desktop }}
-        "# {{ . }}"
-# {{- end }}
-    )
-# {{- else if .isLaptop }}
-    # Laptop-specific packages
-    local machine_packages=(
-# {{- range .laptop }}
-        "# {{ . }}"
-# {{- end }}
-    )
-# {{- else }}
-    local machine_packages=()
-# {{- end }}
-
-# {{- if .isOmarchy }}
-    # Omarchy-specific packages
-    local distro_packages=(
-# {{- range .omarchy }}
-        "# {{ . }}"
-# {{- end }}
-    )
-# {{- else }}
-    local distro_packages=()
-# {{- end }}
-
-    # Install common packages
-    if [[ ${#common_packages[@]} -gt 0 ]]; then
-        install_pacman "${common_packages[@]}"
-    fi
-
-    # Install machine-specific packages
-    if [[ ${#machine_packages[@]} -gt 0 ]]; then
-        install_pacman "${machine_packages[@]}"
-    fi
-
-    # Install distro-specific packages
-    if [[ ${#distro_packages[@]} -gt 0 ]]; then
-        install_pacman "${distro_packages[@]}"
+    # Install pacman packages
+    if [[ ${#pacman_packages[@]} -gt 0 ]]; then
+        install_pacman "${pacman_packages[@]}"
     fi
 
     # Install AUR packages

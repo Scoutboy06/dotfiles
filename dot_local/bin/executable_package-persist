@@ -115,7 +115,7 @@ def get_aur_packages() -> set[str]:
 
 
 def load_packages_yaml() -> tuple[set[str], set[str]]:
-    """Load packages from packages.yaml, return (pacman_pkgs, aur_pkgs)."""
+    """Load packages from annotated packages.yaml list; returns (pacman_pkgs, aur_pkgs) sets."""
     packages_yaml = get_packages_yaml_path()
     if not packages_yaml.exists():
         return set(), set()
@@ -126,14 +126,13 @@ def load_packages_yaml() -> tuple[set[str], set[str]]:
     pacman_pkgs: set[str] = set()
     aur_pkgs: set[str] = set()
 
-    # Collect all pacman packages (common, desktop, laptop, omarchy, optional)
-    for key in ["common", "desktop", "laptop", "omarchy", "optional"]:
-        if key in data and data[key]:
-            pacman_pkgs.update(data[key])
-
-    # AUR packages
-    if "aur" in data and data["aur"]:
-        aur_pkgs.update(data["aur"])
+    pkgs = data.get("packages", [])
+    for pkg in pkgs:
+        # 'source' and 'name' and 'hosts' required by schema.
+        if pkg.get("source") == "pacman":
+            pacman_pkgs.add(pkg.get("name"))
+        elif pkg.get("source") == "aur":
+            aur_pkgs.add(pkg.get("name"))
 
     return pacman_pkgs, aur_pkgs
 
@@ -299,30 +298,34 @@ def cmd_decide(args: argparse.Namespace) -> int:
 
 
 def update_packages_yaml(pacman_pkgs: list[str], aur_pkgs: list[str]) -> None:
-    """Add packages to packages.yaml, preserving comments and formatting."""
+    """
+    Add packages to annotated packages.yaml list under 'packages', preserving comments and formatting.
+    Uses device='all', os='all'.
+    """
     packages_yaml = get_packages_yaml_path()
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.indent(mapping=2, sequence=2, offset=2)
 
     data = yaml.load(packages_yaml)
+    pkgs = data.get("packages", [])
 
-    # Add pacman packages to 'common' section
-    if pacman_pkgs:
-        if "common" not in data or data["common"] is None:
-            data["common"] = []
-        for pkg in sorted(pacman_pkgs):
-            if pkg not in data["common"]:
-                data["common"].append(pkg)
+    # Existing set for deduplication
+    existing = {(pkg.get("name"), pkg.get("source"), pkg.get("device", "all"), pkg.get("os", "all")) for pkg in pkgs}
 
-    # Add AUR packages to 'aur' section
-    if aur_pkgs:
-        if "aur" not in data or data["aur"] is None:
-            data["aur"] = []
-        for pkg in sorted(aur_pkgs):
-            if pkg not in data["aur"]:
-                data["aur"].append(pkg)
+    # Add new pacman packages
+    for pkg in sorted(pacman_pkgs):
+        entry = (pkg, "pacman", "all", "all")
+        if entry not in existing:
+            pkgs.append({"name": pkg, "source": "pacman", "device": "all", "os": "all"})
 
+    # Add new aur packages
+    for pkg in sorted(aur_pkgs):
+        entry = (pkg, "aur", "all", "all")
+        if entry not in existing:
+            pkgs.append({"name": pkg, "source": "aur", "device": "all", "os": "all"})
+
+    data["packages"] = pkgs
     with packages_yaml.open("w") as f:
         yaml.dump(data, f)
 
