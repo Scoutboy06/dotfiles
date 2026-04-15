@@ -97,6 +97,21 @@ tooltip {
   padding: 2px;
 }
 
+menu {
+  background-color: @background;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+menuitem {
+  padding: 4px 8px;
+  color: @foreground;
+}
+
+menuitem:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 #clock {
   margin-left: 8.75px;
 }
