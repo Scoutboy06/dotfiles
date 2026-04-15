@@ -130,3 +130,55 @@ packages:
     source: aur
     device: all
     os: all
+  - name: anki
+    source: pacman
+    device: all
+    os: all
+  - name: filezilla
+    source: pacman
+    device: all
+    os: all
+  - name: opencode
+    source: pacman
+    device: all
+    os: all
+  - name: pacman-contrib
+    source: pacman
+    device: all
+    os: all
+  - name: python-pdftotext
+    source: pacman
+    device: all
+    os: all
+  - name: speedtest-cli
+    source: pacman
+    device: all
+    os: all
+  - name: sqlitebrowser
+    source: pacman
+    device: all
+    os: all
+  - name: wine
+    source: pacman
+    device: all
+    os: all
+  - name: winetricks
+    source: pacman
+    device: all
+    os: all
+  - name: xournalpp
+    source: pacman
+    device: all
+    os: all
+  - name: pomodoro-tui
+    source: aur
+    device: all
+    os: all
+  - name: spicetify-cli
+    source: aur
+    device: all
+    os: all
+  - name: whisper.cpp-cuda-bin
+    source: aur
+    device: all
+    os: all
