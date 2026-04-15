@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """Manage persistence of manually installed packages into dotfiles.
 
 Tracks packages installed via pacman/yay and prompts the user to decide
@@ -53,7 +53,7 @@ def get_packages_yaml_path() -> Path:
 @dataclass
 class State:
     """Persistent state for package tracking.
-    
+
     Only tracks ignored packages. Persisted packages are derived from
     packages.yaml which is the source of truth.
     """
@@ -141,7 +141,7 @@ def get_undecided_packages(state: State) -> tuple[list[str], list[str]]:
     """Get packages that haven't been decided on yet.
 
     Returns (undecided_pacman, undecided_aur).
-    
+
     A package is undecided if it's:
     - Explicitly installed on the system
     - Not in packages.yaml (source of truth for persisted)
@@ -249,7 +249,9 @@ def cmd_decide(args: argparse.Namespace) -> int:
         return 0
 
     # Parse selected items
-    selected = set(result.stdout.strip().split("\n")) if result.stdout.strip() else set()
+    selected = (
+        set(result.stdout.strip().split("\n")) if result.stdout.strip() else set()
+    )
 
     persist_pacman = []
     persist_aur = []
@@ -311,7 +313,15 @@ def update_packages_yaml(pacman_pkgs: list[str], aur_pkgs: list[str]) -> None:
     pkgs = data.get("packages", [])
 
     # Existing set for deduplication
-    existing = {(pkg.get("name"), pkg.get("source"), pkg.get("device", "all"), pkg.get("os", "all")) for pkg in pkgs}
+    existing = {
+        (
+            pkg.get("name"),
+            pkg.get("source"),
+            pkg.get("device", "all"),
+            pkg.get("os", "all"),
+        )
+        for pkg in pkgs
+    }
 
     # Add new pacman packages
     for pkg in sorted(pacman_pkgs):
