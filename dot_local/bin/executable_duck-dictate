@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Wrapper: duck-dictate [start|stop]
+# Serializes volume ducking + voxtype for Hyprland keys
+set -euo pipefail
+
+usage() {
+  echo "Usage: $0 {start|stop}" >&2
+  exit 1
+}
+
+if [[ $# -ne 1 ]]; then
+  usage
+fi
+
+case "$1" in
+start)
+  notify-send "start"
+  ~/.local/bin/duck-system-volume duck
+  voxtype record start
+  ;;
+stop)
+  notify-send "end"
+  voxtype record stop
+  ~/.local/bin/duck-system-volume restore
+  ;;
+*)
+  usage
+  ;;
+esac

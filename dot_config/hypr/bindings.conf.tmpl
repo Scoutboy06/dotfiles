@@ -31,11 +31,11 @@ bind = SUPER, odiaeresis, togglespecialworkspace, terminal #odiaeresis=Ö
 
 {{- if .isLaptop }}
 # XF86Launch8 <=> HP Programmable Key
-bind = , XF86Launch8, exec, voxtype record start
-bindr = , XF86Launch8, exec, voxtype record stop
+bind = , XF86Launch8, exec, duck-dictate start
+bindr = , XF86Launch8, exec, duck-dictate stop
 {{- else if .isDesktop }}
-bind = , F12, exec, voxtype record start
-bindr = , F12, exec, voxtype record stop
+bind = , F12, exec, uwsm app -- ~/.local/bin/duck-dictate start
+bindr = , F12, exec, uwsm app -- ~/.local/bin/duck-dictate stop
 {{- end }}
 
 # Window rules so apps always spawn into their special workspace
