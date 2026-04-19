@@ -1,145 +1,184 @@
 # Annotated package list for chezmoi
 #
-# Structure:
-#   common: packages for all machines (pacman)
-#   aur: AUR packages for all machines
-#   desktop: desktop-only packages
-#   laptop: laptop-only packages
-#   omarchy: Omarchy-specific packages (auto-detected)
-
-common:
-  # Core
-  # - git
-  # - python
-  # - base-devel
-
-  # Git manager (gitm) dependencies
-  - github-cli
-
-  # Shell
-  - zsh
-  - starship
-  - eza
-  - zoxide
-  - fzf
-  - direnv
-
-  # Editor
-  # - neovim
-  # - ripgrep
-  # - fd
-
-  # Hyprland desktop
-  # - hyprland
-  # - hyprlock
-  # - hypridle
-  # - waybar
-  # - xdg-desktop-portal-hyprland
-
-  # Session management
-  # - uwsm
-
-  # Wayland utilities
-  # - brightnessctl
-  # - wl-clipboard
-  # - grim
-  # - slurp
-  # - hyprpicker
-  # - satty
-
-  # Audio
-  # - pipewire
-  # - pipewire-pulse
-  # - wireplumber
-  # - pamixer
-  # - libpulse  # pactl for audio-switch
-
-  # Notifications
-  # - libnotify
-  # - mako
-
-  # Screen recording
-  # - gpu-screen-recorder
-  # - ffmpeg
-  # - mpv
-
-  # Network
-  # - iw
-  # - networkmanager
-
-  # File manager
-  # - nautilus
-
-  # Fonts
-  # - ttf-cascadia-mono-nerd
-
-  # Drawing tablet (desktop only)
-#  - opentabletdriver
-
-  # Extra utilities
-  - gnome-disk-utility
-
-  # YouTube playlist downloader
-  - python-pyqt6
-  - yt-dlp
-  - ffmpeg
-
-  # package-persist: YAML parsing with comment preservation
-  - python-ruamel-yaml
-
-
-  - bacon
-  - chezmoi
-  - nano
-  - ntfs-3g
-  - shotcut
-  - showmethekey
-  - spotify
-  - steam
-  - sublime-text-4
-  - texlive-bin
-  - texlive-latex
-  - texlive-latexextra
-  - cargo-nextest
-  - texlive-fontsextra
-  - texlive-fontutils
-aur:
-  - brave-bin
-  - opentabletdriver
-  - vesktop-bin
-  # Terminal
-  # - ghostty
-
-  # Apps
-  # - 1password
-  # - obsidian
-  # - spotify
-  # - sublime-text-4
-
-desktop:
-
-laptop:
-  # Battery monitoring
-  # - upower
-
-  # Power management
-  # - power-profiles-daemon
-
-omarchy:
-  # Omarchy-specific packages (auto-detected via `omarchy` command)
-  # Add packages here that should only be installed on Omarchy
-
-optional:
-  # Development
-  # - docker
-  # - lazygit
-
-  # System monitoring
-  # - btop
-
-  # Terminal file manager
-  - yazi
-
-  # Btrfs snapshots
-  # - snapper
-  # - pacman-contrib
+# Each item is a package with fields:
+# name:        The package name (REQUIRED)
+# source:      pacman|aur       (REQUIRED)
+# device:      all|desktop|laptop (REQUIRED)
+# os:          all|omarchy        (REQUIRED)
+# note:        (optional, free text)
+#
+# Example:
+# - name: github-cli
+#   source: pacman
+#   device: all
+#   os: all
+# - name: brave-bin
+#   source: aur
+#   device: desktop
+#   os: all
+#
+packages:
+  - name: github-cli
+    source: pacman
+    device: all
+    os: all
+  - name: zsh
+    source: pacman
+    device: all
+    os: all
+  - name: starship
+    source: pacman
+    device: all
+    os: all
+  - name: eza
+    source: pacman
+    device: all
+    os: all
+  - name: zoxide
+    source: pacman
+    device: all
+    os: all
+  - name: fzf
+    source: pacman
+    device: all
+    os: all
+  - name: direnv
+    source: pacman
+    device: all
+    os: all
+  - name: yazi
+    source: pacman
+    device: all
+    os: all
+  - name: gnome-disk-utility
+    source: pacman
+    device: all
+    os: all
+  - name: python-pyqt6
+    source: pacman
+    device: all
+    os: all
+  - name: yt-dlp
+    source: pacman
+    device: all
+    os: all
+  - name: ffmpeg
+    source: pacman
+    device: all
+    os: all
+  - name: python-ruamel-yaml
+    source: pacman
+    device: all
+    os: all
+  - name: bacon
+    source: pacman
+    device: all
+    os: all
+  - name: chezmoi
+    source: pacman
+    device: all
+    os: all
+  - name: nano
+    source: pacman
+    device: all
+    os: all
+  - name: ntfs-3g
+    source: pacman
+    device: all
+    os: all
+  - name: shotcut
+    source: pacman
+    device: all
+    os: all
+  - name: showmethekey
+    source: pacman
+    device: all
+    os: all
+  - name: spotify
+    source: pacman
+    device: all
+    os: all
+  - name: steam
+    source: pacman
+    device: all
+    os: all
+  - name: sublime-text-4
+    source: pacman
+    device: all
+    os: all
+  - name: texlive-bin
+    source: pacman
+    device: all
+    os: all
+  - name: texlive-latex
+    source: pacman
+    device: all
+    os: all
+  - name: texlive-latexextra
+    source: pacman
+    device: all
+    os: all
+  - name: brave-bin
+    source: aur
+    device: all
+    os: all
+  - name: opentabletdriver
+    source: aur
+    device: all
+    os: all
+  - name: vesktop-bin
+    source: aur
+    device: all
+    os: all
+  - name: anki
+    source: pacman
+    device: all
+    os: all
+  - name: filezilla
+    source: pacman
+    device: all
+    os: all
+  - name: opencode
+    source: pacman
+    device: all
+    os: all
+  - name: pacman-contrib
+    source: pacman
+    device: all
+    os: all
+  - name: python-pdftotext
+    source: pacman
+    device: all
+    os: all
+  - name: speedtest-cli
+    source: pacman
+    device: all
+    os: all
+  - name: sqlitebrowser
+    source: pacman
+    device: all
+    os: all
+  - name: wine
+    source: pacman
+    device: all
+    os: all
+  - name: winetricks
+    source: pacman
+    device: all
+    os: all
+  - name: xournalpp
+    source: pacman
+    device: all
+    os: all
+  - name: pomodoro-tui
+    source: aur
+    device: all
+    os: all
+  - name: spicetify-cli
+    source: aur
+    device: all
+    os: all
+  - name: whisper.cpp-cuda-bin
+    source: aur
+    device: all
+    os: all
