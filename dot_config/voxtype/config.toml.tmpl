@@ -23,7 +23,7 @@ device = "default"
 sample_rate = 16000
 
 # Maximum recording duration in seconds (safety limit)
-max_duration_secs = 60
+max_duration_secs = 120
 
 [audio.feedback]
 # Enable audio feedback sounds (beeps when recording starts/stops)
@@ -34,6 +34,9 @@ theme = "subtle"
 #
 # Volume level (0.0 to 1.0)
 volume = 0.4
+
+[meeting]
+enabled = true
 
 [whisper]
 
@@ -77,7 +80,7 @@ fallback_to_clipboard = true
 
 # Delay between typed characters in milliseconds
 # 0 = fastest possible, increase if characters are dropped
-type_delay_ms = 1
+type_delay_ms = 2
 
 # Post-processing command (optional)
 # Pipe transcribed text through an external command for cleanup before output.
@@ -107,3 +110,4 @@ on_transcription = false
 #
 # Custom word replacements (case-insensitive)
 # replacements = { "hyperwhisper" = "hyprwhspr" }
+replacements = { ".files" = "dotfiles" }
