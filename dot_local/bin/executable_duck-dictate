@@ -14,12 +14,10 @@ fi
 
 case "$1" in
 start)
-  notify-send "start"
   ~/.local/bin/duck-system-volume duck
   voxtype record start
   ;;
 stop)
-  notify-send "end"
   voxtype record stop
   ~/.local/bin/duck-system-volume restore
   ;;

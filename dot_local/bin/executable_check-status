@@ -11,4 +11,25 @@ if [ -n "$STATUS" ]; then
         "$(printf '%s' "$STATUS" | head -n 10)"
 fi
 
-"check-agents-sync"
+# --- Check if branch is in sync with remote ---
+# Fetch the latest remote info (quietly, for performance)
+git fetch --quiet
+
+# Determine the current branch and its upstream
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+
+if [ -n "$UPSTREAM" ]; then
+    COUNTS=$(git rev-list --left-right --count "$UPSTREAM...HEAD")
+    BEHIND=$(echo "$COUNTS" | awk '{print $1}')
+    AHEAD=$(echo "$COUNTS" | awk '{print $2}')
+
+    if [ "$BEHIND" -gt 0 ] && [ "$AHEAD" -eq 0 ]; then
+        notify-send --wait "Dotfiles remote: $BRANCH is $BEHIND commit(s) behind $UPSTREAM"
+    elif [ "$AHEAD" -gt 0 ] && [ "$BEHIND" -eq 0 ]; then
+        notify-send --wait "Dotfiles remote: $BRANCH is $AHEAD commit(s) ahead of $UPSTREAM"
+    elif [ "$AHEAD" -gt 0 ] && [ "$BEHIND" -gt 0 ]; then
+        notify-send --wait "Dotfiles remote: $BRANCH has diverged from $UPSTREAM (ahead: $AHEAD, behind: $BEHIND)"
+    fi
+fi
+
