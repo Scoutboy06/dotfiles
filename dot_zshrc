@@ -56,6 +56,32 @@ export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 typeset -U path  # Remove duplicates
 path=(~/.local/bin $path)
 
+# fnm
+FNM_PATH="/home/elias/.local/share/fnm"
+if [ -d "$FNM_PATH" ]; then
+  export PATH="$FNM_PATH:$PATH"
+  eval "`fnm env --use-on-cd`"
+fi
+
+# opencode
+export PATH=/home/elias/.opencode/bin:$PATH
+
+# flutter
+export PATH="/opt/flutter/bin:$PATH"
+
+# android sdk stuff
+export ANDROID_HOME=/opt/android-sdk
+export ANDROID_AVD_HOME="$HOME/.config/.android/avd"
+export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_HOME/emulator
+
+# Cargo
+. "$HOME/.cargo/env"
+
+# Local environment
+. "$HOME/.local/share/../bin/env"
+
 # ----- Aliases -----
 # ls with colors (use eza if available)
 if command -v eza &>/dev/null; then
@@ -82,8 +108,15 @@ alias ....='cd ../../..'
 alias g='git'
 alias v='nvim'
 alias vim='nvim'
+alias svim='sudo -E nvim'
+alias copy='wl-copy'
+alias paste='wl-paste'
 
-mkcd() { mkdir -p "$1" && cd "$1"; }
+mkcd() {
+  [ -z "$1" ] && { echo "Usage: mkcd <dir>"; return 1; }
+  local dir="${1/#\~/$HOME}"
+  mkdir -p "$dir" && cd "$dir"
+}
 
 # Git aliases
 alias gs='git status'
@@ -103,6 +136,15 @@ alias cz='chezmoi'
 alias cza='chezmoi apply'
 alias czd='chezmoi diff'
 alias cze='chezmoi edit'
+
+# Custom functions
+o() {
+  if [[ ! -f .env ]]; then
+    echo "❌ .env not found in $(pwd)"
+    return 1
+  fi
+  op run --env-file=.env -- "$@"
+}
 
 # ----- Integrations -----
 
