@@ -80,7 +80,7 @@ export PATH=$PATH:$ANDROID_HOME/emulator
 . "$HOME/.cargo/env"
 
 # Local environment
-. "$HOME/.local/share/../bin/env"
+# . "$HOME/.local/share/../bin/env"
 
 # ----- Aliases -----
 # ls with colors (use eza if available)

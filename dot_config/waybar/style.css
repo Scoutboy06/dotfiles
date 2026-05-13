@@ -148,19 +148,31 @@ menuitem:hover {
 }
 
 #custom-voxtype.transcribing {
-    color: #f1fa8c;
+  color: #f1fa8c;
 }
 
 #custom-voxtype.idle {
-    color: #50fa7b;
+  color: #50fa7b;
 }
 
 #custom-voxtype.stopped {
-    color: #6272a4;
+  color: #6272a4;
 }
+
 /**/
 /* @keyframes pulse { */
 /*     0%, 100% { opacity: 1; } */
 /*     50% { opacity: 0.5; } */
 /* } */
 
+
+#custom-weather {
+  margin-left: 7.5px;
+  margin-right: 7.5px;
+}
+
+#custom-weather.unavailable {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
