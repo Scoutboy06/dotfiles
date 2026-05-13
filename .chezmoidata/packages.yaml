@@ -182,3 +182,35 @@ packages:
     source: aur
     device: all
     os: all
+  - name: cargo-nextest
+    source: pacman
+    device: all
+    os: all
+  - name: python-markdownify
+    source: pacman
+    device: all
+    os: all
+  - name: texlive-binextra
+    source: pacman
+    device: all
+    os: all
+  - name: texlive-fontsextra
+    source: pacman
+    device: all
+    os: all
+  - name: texlive-fontutils
+    source: pacman
+    device: all
+    os: all
+  - name: ttf-firacode-nerd
+    source: pacman
+    device: all
+    os: all
+  - name: latex-mk
+    source: aur
+    device: all
+    os: all
+  - name: r-quick-share-bin
+    source: aur
+    device: all
+    os: all
