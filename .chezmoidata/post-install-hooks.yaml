@@ -1,0 +1,41 @@
+# Post-install hooks for packages
+#
+# This file defines post-installation scripts that should run after packages are
+# installed. Each hook can contain one or more commands that will be executed
+# sequentially.
+#
+# Schema:
+# - package:     The name of the package (for documentation/tracking)
+# - description: Human-readable description of what the hook does
+# - mode:        Execution mode (see notes below)
+# - commands:    List of commands to run in order (each as a separate string)
+#
+# Execution modes:
+# - run_once:     Commands run only once (when hook content changes)
+# - run_onchange: Commands run every time the hook definition changes
+#
+# Multiple hooks per package:
+# If a package needs both one-time setup and recurring tasks, create two
+# separate entries with different modes.
+#
+# Error handling:
+# If a command in a hook fails, the remaining commands in that hook still run.
+# If a hook fails, the remaining hooks still run (all hooks are attempted).
+#
+# Note: Sudo password input is handled interactively. Commands requiring sudo
+# will prompt for your password (once per hook execution).
+#
+
+post_install_hooks:
+  - package: spicetify-cli
+    description: "Set write permissions for Spotify and Apps directory"
+    mode: run_once
+    commands:
+      - sudo chmod a+wr /opt/spotify
+      - sudo chmod a+wr /opt/spotify/Apps -R
+  - package: spicetify-cli
+    description: "Install Spicetify Marketplace"
+    mode: run_once
+    commands:
+      - curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | sh
+
