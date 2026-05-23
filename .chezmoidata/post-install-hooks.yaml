@@ -33,6 +33,13 @@ post_install_hooks:
     commands:
       - sudo chmod a+wr /opt/spotify
       - sudo chmod a+wr /opt/spotify/Apps -R
+
+  - package: spicetify-cli
+    description: "Init Spicetify"
+    mode: run_once
+    commands:
+      - spicetify backup apply
+
   - package: spicetify-cli
     description: "Install Spicetify Marketplace"
     mode: run_once
