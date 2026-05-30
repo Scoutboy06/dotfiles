@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 # chezmoi:template:left-delimiter="{{" right-delimiter="}}"
 #
-# Install packages and run post-install hooks
+# Install packages from packages.yaml
 # This script:
-#   1. Installs packages from packages.yaml
-#   2. Runs post-installation hooks from post-install-hooks.yaml (in order)
+#   1. Filters out already-installed packages
+#   2. Installs remaining packages from packages.yaml
 #
-# The script runs automatically when either packages.yaml or post-install-hooks.yaml
-# changes (run_onchange_ prefix). This keeps package installation and post-install
-# setup as a single declarative unit.
+# The script runs automatically when packages.yaml changes (run_onchange_ prefix).
 #
-# Hashes (triggers re-execution if either file changes):
+# Hash (triggers re-execution if file changes):
 # packages.yaml: {{ include ".chezmoidata/packages.yaml" | sha256sum }}
-# post-install-hooks.yaml: {{ include ".chezmoidata/post-install-hooks.yaml" | sha256sum }}
 
 set -euo pipefail
 
@@ -33,6 +30,11 @@ if [[ $EUID -eq 0 ]]; then
     log_error "Do not run this script as root"
     exit 1
 fi
+
+# Get list of already-installed packages
+get_installed_packages() {
+    pacman -Q --quiet 2>/dev/null || true
+}
 
 # Detect AUR helper
 detect_aur_helper() {
@@ -67,63 +69,14 @@ install_aur() {
     "$helper" -S --needed --noconfirm "${packages[@]}"
 }
 
-# Execute post-install hooks from post-install-hooks.yaml
-# Each hook can contain multiple commands that run sequentially.
-# If a command fails, remaining commands in that hook continue.
-# If a hook fails, remaining hooks still attempt to run.
-run_post_install_hooks() {
-    log_info "Running post-install hooks..."
-    echo ""
 
-    # Track results
-    local hooks_succeeded=0
-    local hooks_failed=0
-
-{{ $hooks := (include ".chezmoidata/post-install-hooks.yaml" | fromYaml).post_install_hooks }}
-{{ range $hook := $hooks }}
-    # Hook: {{ $hook.package }} - {{ $hook.description }}
-    log_info "Running post-install hook for: {{ $hook.package }}"
-    log_info "  Description: {{ $hook.description }}"
-
-    local hook_failed=0
-{{ range $cmd := $hook.commands }}
-    log_info "  Executing: {{ $cmd }}"
-    if eval "{{ $cmd }}"; then
-        log_success "  Command succeeded"
-    else
-        local exit_code=$?
-        log_error "  Command failed with exit code $exit_code"
-        hook_failed=1
-    fi
-{{ end }}
-
-    if [[ $hook_failed -eq 0 ]]; then
-        ((hooks_succeeded++)) || true
-        log_success "Hook completed successfully: {{ $hook.package }}"
-    else
-        ((hooks_failed++)) || true
-        log_warn "Hook had failures: {{ $hook.package }} (but continuing)"
-    fi
-    echo ""
-
-{{ end }}
-
-    # Summary
-    log_info "Post-install hooks completed"
-    echo ""
-
-    if [[ $hooks_succeeded -gt 0 ]]; then
-        log_success "Succeeded: $hooks_succeeded hook(s)"
-    fi
-
-    if [[ $hooks_failed -gt 0 ]]; then
-        log_warn "Failed: $hooks_failed hook(s)"
-        return 1
-    fi
-}
 
 install_packages_main() {
     log_info "Installing packages from packages.yaml..."
+
+    # Get list of already-installed packages once
+    local installed_packages
+    installed_packages=$(get_installed_packages)
 
     # --- DYNAMIC PACKAGE ARRAY SELECTION FOR ANNOTATED LIST FORMAT ---
     # Determine device and os for filtering (device: 'all'|'desktop'|'laptop', os: 'all'|'omarchy').
@@ -146,16 +99,24 @@ install_packages_main() {
 {{ $matchesDevice := or (eq $pkg.device "all") (and (eq $pkg.device "desktop") $.isDesktop) (and (eq $pkg.device "laptop") $.isLaptop) }}
 {{ $matchesOS := or (eq $pkg.os "all") (and (eq $pkg.os "omarchy") $.isOmarchy) }}
 {{ if and (eq $pkg.source "pacman") $matchesDevice $matchesOS }}
-    pacman_packages+=("{{ $pkg.name }}")
+    # Only add if not already installed
+    if ! grep -q "^{{ $pkg.name }}$" <(echo "$installed_packages"); then
+        pacman_packages+=("{{ $pkg.name }}")
+    fi
 {{ end }}
 {{ if and (eq $pkg.source "aur") $matchesDevice $matchesOS }}
-    aur_packages+=("{{ $pkg.name }}")
+    # Only add if not already installed
+    if ! grep -q "^{{ $pkg.name }}$" <(echo "$installed_packages"); then
+        aur_packages+=("{{ $pkg.name }}")
+    fi
 {{ end }}
 {{ end }}
 
     # Install pacman packages
     if [[ ${#pacman_packages[@]} -gt 0 ]]; then
         install_pacman "${pacman_packages[@]}"
+    else
+        log_info "No new pacman packages to install"
     fi
 
     # Install AUR packages
@@ -166,19 +127,16 @@ install_packages_main() {
             log_warn "No AUR helper found (paru/yay). Skipping AUR packages."
             log_warn "Install paru or yay and run 'chezmoi apply' again."
         fi
+    else
+        log_info "No new AUR packages to install"
     fi
 
     log_info "Package installation complete!"
 }
 
 main() {
-    # Install packages first
     install_packages_main
-    
-    # Then run post-install hooks
-    run_post_install_hooks
-    
-    log_success "Package installation and post-install hooks completed!"
+    log_success "Package installation completed!"
 }
 
 main "$@"
