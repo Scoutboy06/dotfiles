@@ -1,0 +1,29 @@
+monitor.alsa.rules = [
+  -- [RANK 1] Bluetooth Headphones
+  -- Matches any bluez output; priority 1500 ensures it wins over internal speakers.
+  {
+    matches = [ { node.name = "~bluez_output.*" } ],
+    actions = { update-props = { priority.session = 1500 } }
+  },
+
+  -- [RANK 2] Wired Headphone Jack
+  -- Matches the specific HiFi Headphones sink often found on laptops.
+  {
+    matches = [ { node.name = "~alsa_output.*.HiFi__Headphones__sink"} ],
+    actions = { update-props = { priority.session = 1400 } }
+  },
+
+  -- [RANK 3] HDMI / DisplayPort Audio
+  -- Matches any HDMI or DP output; takes priority over laptop speakers when docked.
+  {
+    matches = [ { node.name = "~alsa_output.*.HDMI.*" } ],
+    actions = { update-props = { priority.session = 1100 } }
+  },
+
+  -- [RANK 4] Internal Laptop Speakers
+  -- Most devices default to 1000, but explicit setting ensures consistency.
+  {
+    matches = [ { node.name = "~alsa_output.*.Speaker.*" } ],
+    actions = { update-props = { priority.session = 1000 } }
+  }
+]
