@@ -26,8 +26,20 @@ packages:
   source: pacman
   device: all
   os: all
+- name: biome
+  source: pacman
+  device: all
+  os: all
+- name: bitwarden-bin
+  source: aur
+  device: all
+  os: all
 - name: brave-bin
   source: aur
+  device: all
+  os: all
+- name: bun-bin
+  source: pacman
   device: all
   os: all
 - name: cargo-nextest
@@ -66,12 +78,20 @@ packages:
   source: pacman
   device: all
   os: all
+- name: kdeconnect
+  source: pacman
+  device: all
+  os: all
 - name: latex-mk
   source: aur
   device: all
   os: all
 - name: nano
   source: pacman
+  device: all
+  os: all
+- name: ngrok
+  source: aur
   device: all
   os: all
 - name: ntfs-3g
@@ -87,6 +107,10 @@ packages:
   device: all
   os: all
 - name: pacman-contrib
+  source: pacman
+  device: all
+  os: all
+- name: partitionmanager
   source: pacman
   device: all
   os: all
@@ -150,6 +174,10 @@ packages:
   source: pacman
   device: all
   os: all
+- name: tailscale
+  source: pacman
+  device: all
+  os: all
 - name: texlive-bin
   source: pacman
   device: all
@@ -174,12 +202,20 @@ packages:
   source: pacman
   device: all
   os: all
+- name: tree
+  source: pacman
+  device: all
+  os: all
 - name: ttf-firacode-nerd
   source: pacman
   device: all
   os: all
 - name: vesktop-bin
   source: aur
+  device: all
+  os: all
+- name: vlc
+  source: pacman
   device: all
   os: all
 - name: whisper.cpp-cuda-bin
