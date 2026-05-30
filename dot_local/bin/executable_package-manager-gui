@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Package Manager GUI - Wrapper script for PyQt6 application
+# Launches the graphical package manager from dot_local/bin/package_manager_gui/
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Define required Python packages
+declare -a REQUIRED_PACKAGES=(
+  "PyQt6"
+  "ruamel.yaml"
+)
+
+usage() {
+  cat << 'EOF'
+Usage: package-manager-gui [OPTIONS]
+
+Launch the graphical package manager interface for managing persistent packages.
+
+Options:
+  -h, --help           Show this help message and exit
+  --check-deps         Check if all required dependencies are installed
+  --debug              Run in foreground (useful for debugging)
+
+Examples:
+  package-manager-gui              # Launch GUI in background
+  package-manager-gui --debug      # Launch GUI in foreground
+  package-manager-gui --check-deps # Verify all dependencies
+
+For more information, see: https://github.com/yourusername/dotfiles
+
+EOF
+}
+
+check_python_package() {
+  local package=$1
+  /usr/bin/python3 -c "import ${package}" 2>/dev/null && return 0 || return 1
+}
+
+check_dependencies() {
+  local missing=()
+  
+  for pkg in "${REQUIRED_PACKAGES[@]}"; do
+    if ! check_python_package "$pkg"; then
+      missing+=("$pkg")
+    fi
+  done
+  
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "❌ Missing required Python packages:" >&2
+    for pkg in "${missing[@]}"; do
+      echo "   - $pkg" >&2
+    done
+    echo "" >&2
+    echo "Install them with one of:" >&2
+    echo "  sudo pacman -S python-pyqt6 python-ruamel-yaml" >&2
+    echo "  sudo apt install python3-pyqt6 python3-ruamel.yaml" >&2
+    echo "  pip install PyQt6 ruamel.yaml" >&2
+    return 1
+  fi
+  
+  return 0
+}
+
+launch_gui() {
+  local debug_mode=${1:-false}
+  
+  # Set up Python path to find the package_manager_gui module
+  export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH:-}"
+  
+  if [[ "$debug_mode" == "true" ]]; then
+    # Run in foreground for debugging
+    /usr/bin/python3 -m package_manager_gui
+  else
+    # Run in background so terminal remains usable
+    /usr/bin/python3 -m package_manager_gui >/dev/null 2>&1 &
+    local pid=$!
+    echo "✓ Package Manager GUI launched (PID: $pid)"
+  fi
+}
+
+# Main script logic
+main() {
+  local debug_mode=false
+  
+  # Parse command-line arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      --check-deps)
+        if check_dependencies; then
+          echo "✓ All required dependencies are installed."
+          exit 0
+        else
+          exit 1
+        fi
+        ;;
+      --debug)
+        debug_mode=true
+        shift
+        ;;
+      *)
+        echo "❌ Unknown option: $1" >&2
+        echo "Use --help for usage information." >&2
+        exit 2
+        ;;
+    esac
+  done
+  
+  # Check dependencies before launching
+  if ! check_dependencies; then
+    exit 1
+  fi
+  
+  # Verify the module exists
+  if [[ ! -d "${SCRIPT_DIR}/package_manager_gui" ]]; then
+    echo "❌ Error: package_manager_gui module not found at ${SCRIPT_DIR}/package_manager_gui" >&2
+    exit 1
+  fi
+  
+  # Launch the GUI
+  launch_gui "$debug_mode"
+}
+
+# Run main function if script is executed directly
+main "$@"
