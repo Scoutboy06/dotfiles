@@ -146,6 +146,21 @@ o() {
   op run --env-file=.env -- "$@"
 }
 
+inspect() {
+  [ -z "$1" ] && { echo "Usage: inspect <command>"; return 1; }
+  local target
+  if ! target=$(which "$1"); then
+    echo "$target"
+    return 1
+  fi
+  
+  if [[ -f "$target" ]]; then
+    bat "$target"
+  else
+    echo "$target" | bat -l zsh
+  fi
+}
+
 # ----- Integrations -----
 
 # Starship prompt
