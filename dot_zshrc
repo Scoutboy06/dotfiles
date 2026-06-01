@@ -153,12 +153,23 @@ inspect() {
     echo "$target"
     return 1
   fi
-  
+
   if [[ -f "$target" ]]; then
     bat "$target"
   else
     echo "$target" | bat -l zsh
   fi
+}
+
+gitzip() {
+  local dir="${1:?Usage: gitzip <directory> [zipname]}"
+  local zipname="${2:-${dir%/}.zip}"
+  [[ -d "$dir" ]] || { echo "❌ Not a directory: $dir"; return 1; }
+  [[ -d "$dir/.git" ]] || { echo "❌ Not a git repo: $dir"; return 1; }
+  git -C "$dir" ls-files --cached --others --exclude-standard -z |
+    sed -z "s|^|${dir%/}/|" |
+    xargs -0 zip "$zipname" &&
+    echo "✅ Created $zipname ($(git -C "$dir" ls-files --cached --others --exclude-standard | wc -l) files)"
 }
 
 # ----- Integrations -----
