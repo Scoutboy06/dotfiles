@@ -1,0 +1,4 @@
+{{ if .isDesktop }}#!/usr/bin/env bash
+systemctl --user daemon-reload
+systemctl --user enable --now sunshine.service
+{{ end }}

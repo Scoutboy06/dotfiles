@@ -1,0 +1,12 @@
+[Unit]
+Description=Sunshine Remote Stream Server
+After=network.target
+
+[Service]
+# Replace /usr/bin/sunshine with the output of 'which sunshine'
+ExecStart=/usr/bin/sunshine
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
