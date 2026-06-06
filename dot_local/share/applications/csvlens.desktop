@@ -1,0 +1,11 @@
+[Desktop Entry]
+Hidden=true
+Type=Application
+Name=Csvlens
+Comment=A terminal-based CSV viewer and editor
+Exec=omarchy-launch-floating-terminal-with-presentation csvlens
+Icon=csvlens
+Terminal=false
+MimeType=text/csv;
+Categories=Utility;System;
+Keywords=csv;spreadsheet;viewer;editor;terminal;

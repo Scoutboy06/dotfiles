@@ -31,6 +31,7 @@ x-scheme-handler/mailto=brave-browser.desktop
 x-scheme-handler/webcal=brave-browser.desktop
 text/plain=nvim.desktop
 text/english=nvim.desktop
+text/csv=csvlens.desktop
 text/x-makefile=nvim.desktop
 text/x-c++hdr=nvim.desktop
 text/x-c++src=nvim.desktop
