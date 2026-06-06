@@ -3,6 +3,9 @@
 {{- $isLaptop := or (eq $hostname "eliaslt") (eq $hostname "EliasLT") -}}
 {{- $isOmarchy := lookPath "omarchy" | not | not -}}
 
+{{- $forceUseHyprlockOnBoot := env "FORCE_HYPRLOCK_ON_BOOT" | eq "true" -}}
+{{- $useHyprlockOnBoot := or $forceUseHyprlockOnBoot (and $isDesktop $isOmarchy) -}}
+
 sourceDir = "/home/elias/p/dotfiles"
 
 [data]
@@ -17,6 +20,7 @@ sourceDir = "/home/elias/p/dotfiles"
   monitorScale = 1.25
   primaryMonitor = "eDP-1"
 {{- end }}
+  useHyprlockOnBoot = {{ $useHyprlockOnBoot }}
 
 # [merge]
 # command = "nvim"

@@ -8,6 +8,9 @@ env = EDITOR,nvim
 # exec-once = uwsm app -- my-service
 
 #exec-once = uwsm app -- waybar
+{{- if .useHyprlockOnBoot }}
+exec-once = uwsm app -- hyprlock --immediate-render
+{{- end }}
 exec-once = check-status
 exec-once = check-agents-sync
 #exec-once = uwsm app -- 1password
