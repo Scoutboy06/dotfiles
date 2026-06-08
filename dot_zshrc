@@ -198,5 +198,10 @@ fi
 zstyle -e ':completion:*:(ssh|scp):*:my-accounts' users-hosts \
   '_hosts "$@"; trap false EXIT; return 1'
 
+# Syncthing
+if command -v syncthing &>/dev/null; then
+    eval "$(syncthing install-completions)"
+fi
+
 # ----- Local overrides -----
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
