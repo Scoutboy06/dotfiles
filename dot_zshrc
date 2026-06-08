@@ -172,6 +172,10 @@ gitzip() {
     echo "✅ Created $zipname ($(git -C "$dir" ls-files --cached --others --exclude-standard | wc -l) files)"
 }
 
+skills() {
+  bunx skills "$@"
+}
+
 # ----- Integrations -----
 
 # Starship prompt
