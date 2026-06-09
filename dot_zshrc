@@ -66,15 +66,8 @@ fi
 # opencode
 export PATH=/home/elias/.opencode/bin:$PATH
 
-# flutter
-export PATH="/opt/flutter/bin:$PATH"
-
-# android sdk stuff
-export ANDROID_HOME=/opt/android-sdk
-export ANDROID_AVD_HOME="$HOME/.config/.android/avd"
-export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-export PATH=$PATH:$ANDROID_HOME/emulator
+# LM Studio CLI (lms)
+export PATH="$PATH:/home/elias/.lmstudio/bin"
 
 # Cargo
 . "$HOME/.cargo/env"
@@ -209,3 +202,4 @@ fi
 
 # ----- Local overrides -----
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+
