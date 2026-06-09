@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+import os
+import re
+import json
+from pathlib import Path
+
+# Steam directories
+STEAM_ROOT = Path.home() / ".local" / "share" / "Steam"
+LIBRARY_CACHE_DIR = STEAM_ROOT / "appcache" / "librarycache"
+LIBRARY_FOLDERS_FILE = STEAM_ROOT / "steamapps" / "libraryfolders.vdf"
+
+# Blacklist of app names (case-insensitive substring matching)
+BLACKLIST = [
+    "Proton",
+    "Steam Linux Runtime",
+    "Steamworks Common Redistributables",
+]
+
+def is_blacklisted(app_name):
+    """Check if app name contains any blacklisted strings"""
+    app_name_lower = app_name.lower()
+    for blacklist_item in BLACKLIST:
+        if blacklist_item.lower() in app_name_lower:
+            return True
+    return False
+
+def parse_vdf(content):
+    """Simple VDF parser for key-value pairs"""
+    result = {}
+
+    for line in content.split('\n'):
+        line = line.strip()
+        if not line or line.startswith('//'):
+            continue
+
+        # Match key "value" patterns
+        match = re.match(r'"([^"]+)"\s+"([^"]*)"', line)
+        if match:
+            key, value = match.groups()
+            result[key.lower()] = value
+
+    return result
+
+def get_library_paths():
+    """Read libraryfolders.vdf to find all Steam library paths."""
+    paths = []
+    
+    # Always include the default path
+    if STEAM_ROOT.exists():
+        paths.append(STEAM_ROOT)
+
+    if LIBRARY_FOLDERS_FILE.exists():
+        try:
+            with open(LIBRARY_FOLDERS_FILE, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+                
+            # Find all "path" entries in the VDF
+            found_paths = re.findall(r'"path"\s+"([^"]+)"', content, re.IGNORECASE)
+            for p in found_paths:
+                path_obj = Path(p)
+                if path_obj not in paths and path_obj.exists():
+                    paths.append(path_obj)
+        except Exception as e:
+            print(f"Error reading libraryfolders.vdf: {e}", file=__import__('sys').stderr)
+            
+    return paths
+
+def get_app_info():
+    """Extract all Steam apps across all libraries"""
+    apps = []
+    library_paths = get_library_paths()
+    
+    # Find all appmanifest files
+    manifest_files = []
+    for library_path in library_paths:
+        steamapps_dir = library_path / "steamapps"
+        if steamapps_dir.exists():
+            manifest_files.extend(steamapps_dir.glob("appmanifest_*.acf"))
+
+    for manifest_file in sorted(manifest_files):
+        try:
+            with open(manifest_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+
+            data = parse_vdf(content)
+
+            app_id = data.get('appid', '')
+            name = data.get('name', 'Unknown')
+            install_dir = data.get('installdir', '')
+            size_on_disk = data.get('sizeondisk', '0')
+            last_played = data.get('lastplayed', '0')
+            
+            # Skip blacklisted apps
+            if is_blacklisted(name):
+                continue
+
+            # Check for images in cache
+            image_path = None
+            cache_dir = LIBRARY_CACHE_DIR / app_id
+            if cache_dir.exists():
+                # Prefer library_600x900.jpg (tall grid format), then logo.png, then header.jpg/library_header.jpg
+                target_images = ['library_600x900.jpg', 'logo.png', 'header.jpg', 'library_header.jpg']
+                
+                # Check root cache dir first
+                for img_name in target_images:
+                    img = cache_dir / img_name
+                    if img.exists():
+                        image_path = str(img)
+                        break
+                
+                # If not found in root, check subdirectories (Steam sometimes uses hash subdirectories)
+                if not image_path:
+                    for img_name in target_images:
+                        # Use rglob to search all subdirectories
+                        found = list(cache_dir.rglob(img_name))
+                        if found:
+                            image_path = str(found[0])
+                            break
+
+            apps.append({
+                'id': app_id,
+                'name': name,
+                'install_dir': install_dir,
+                'size_on_disk': int(size_on_disk) if size_on_disk.isdigit() else 0,
+                'last_played': int(last_played) if last_played.isdigit() else 0,
+                'image': image_path,
+                'cache_dir': str(cache_dir) if cache_dir.exists() else None
+            })
+        except Exception as e:
+            print(f"Error processing {manifest_file}: {e}", file=__import__('sys').stderr)
+
+    return apps
+
+if __name__ == '__main__':
+    apps = get_app_info()
+
+    # Output as JSON for better readability
+    print(json.dumps(apps, indent=2))

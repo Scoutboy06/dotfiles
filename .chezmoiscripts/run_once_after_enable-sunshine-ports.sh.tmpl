@@ -1,0 +1,16 @@
+{{ if .isDesktop }}#!/bin/bash
+# 1. Allow the TCP Control Ports
+sudo ufw allow 47984/tcp
+sudo ufw allow 47989/tcp
+sudo ufw allow 47990/tcp
+sudo ufw allow 48010/tcp
+
+# 2. Allow the UDP Streaming and Input Ports
+sudo ufw allow 47998:48000/udp
+sudo ufw allow 48002/udp
+sudo ufw allow 48010/udp
+
+# 3. Optional: Allow local network discovery (mDNS)
+sudo ufw allow 5353/udp
+
+{{ end }}
