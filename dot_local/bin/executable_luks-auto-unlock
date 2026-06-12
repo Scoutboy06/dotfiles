@@ -1,0 +1,488 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# LUKS auto-unlock with keyfile
+#
+# Creates a keyfile and registers it with LUKS so the system boots
+# straight through the Plymouth disk-encryption password prompt.
+#
+# How it works:
+#   1. A random 4 KiB keyfile is created at /crypto_keyfile.bin
+#   2. The keyfile is registered as an additional LUKS passphrase
+#      (the original password still works as a fallback)
+#   3. The keyfile is bundled into the initramfs (or UKI) via mkinitcpio's
+#      FILES= array
+#   4. At boot, the `encrypt` hook (/usr/lib/initcpio/hooks/encrypt) checks
+#      for /crypto_keyfile.bin in the initramfs. If found, it tries it
+#      automatically — no kernel cmdline changes needed.
+#
+# Security note: this removes the only boot-time password prompt that
+# protects the drive. Anyone with physical access can boot the machine
+# and access all files. Only use on machines in a trusted location.
+#
+# The original passphrase is preserved as a LUKS slot. You can still
+# use it to manually unlock (e.g. when booting a recovery image, or
+# if the keyfile gets corrupted and you need to re-run this script).
+
+KEYFILE_PATH="/crypto_keyfile.bin"
+MKC_CONF="/etc/mkinitcpio.conf"
+MKC_DROPIN_DIR="/etc/mkinitcpio.conf.d"
+MKC_DROPIN="${MKC_DROPIN_DIR}/luks_auto_unlock.conf"
+
+usage() {
+  cat <<'USAGE'
+Usage: luks-auto-unlock [--dry-run] [--force] [--revert] [--status]
+
+Creates a LUKS keyfile to skip the disk-encryption password prompt at boot.
+The keyfile is bundled into the initramfs; the encrypt hook auto-detects it.
+
+Options:
+  --dry-run    Show what would be done without making changes
+  --force      Skip confirmation prompts
+  --revert     Remove keyfile and return to password-only boot
+  --status     Show current state (keyfile/LUKS/mkinitcpio)
+  -h, --help   Show this help
+USAGE
+}
+
+die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+warn() {
+  printf 'Warning: %s\n' "$*" >&2
+}
+
+info() {
+  printf '%s\n' "$*"
+}
+
+step() {
+  printf ':: %s\n' "$*"
+}
+
+require_root() {
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    die "Must run as root (try: sudo $0)"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Device detection
+# ---------------------------------------------------------------------------
+
+# Detect the LUKS device that contains the root filesystem.
+# Uses three methods in order of reliability:
+#   1. Parse cryptdevice=PARTUUID= from /proc/cmdline
+#   2. Walk the device tree from the / mount point
+#   3. Fallback: any crypto_LUKS device on the system
+detect_luks_device() {
+  local luks_dev
+
+  # Method 1: Extract PARTUUID from kernel cmdline (this is what Omarchy
+  # uses in /etc/default/limine -> limine-entry-tool -> embedded cmdline).
+  local partuuid
+  partuuid=$(grep -oP 'cryptdevice=\w+=\K[^:]+' /proc/cmdline 2>/dev/null || true)
+  if [[ -n "$partuuid" ]]; then
+    luks_dev=$(lsblk -lno NAME "/dev/disk/by-partuuid/$partuuid" 2>/dev/null \
+      | grep -E '^[a-z]+[0-9]+' | head -1 || true)
+    if [[ -n "$luks_dev" ]]; then
+      printf '/dev/%s' "$luks_dev"
+      return 0
+    fi
+  fi
+
+  # Method 2: Walk up from / mount.  findmnt gives us /dev/mapper/<name>,
+  # and the dm-crypt device's parent is the LUKS partition.
+  local root_dev dm_dev crypt_line
+  root_dev=$(findmnt -n -o SOURCE / 2>/dev/null || true)
+  root_dev="${root_dev%%[*}"
+
+
+  if [[ -n "$root_dev" && "$root_dev" == /dev/mapper/* ]]; then
+    dm_dev="${root_dev#/dev/mapper/}"
+    # Check all LUKS partitions for one that has this dm as a child.
+    crypt_line=$(lsblk -lno NAME,FSTYPE 2>/dev/null \
+      | awk -v dm="$dm_dev" '/crypto_LUKS/{
+        luks=$1
+        # Check if this device has dm as a child
+        cmd="lsblk -lno NAME /dev/" luks " 2>/dev/null | head -1"
+        cmd | getline child
+        close(cmd)
+        if (child == dm) print "/dev/" luks
+      }' | head -1 || true)
+    if [[ -n "$crypt_line" ]]; then
+      printf '%s' "$crypt_line"
+      return 0
+    fi
+  fi
+
+  # Method 3: If there is exactly one crypto_LUKS device, use it.
+  local luks_list
+  luks_list=($(lsblk -lno NAME,FSTYPE 2>/dev/null \
+    | awk '/crypto_LUKS/{print "/dev/"$1}'))
+  if [[ ${#luks_list[@]} -eq 1 ]]; then
+    printf '%s' "${luks_list[0]}"
+    return 0
+  elif [[ ${#luks_list[@]} -gt 1 ]]; then
+    # Multiple LUKS devices but none matched root — ambiguous.
+    # Print all of them and let the user decide.
+    printf '%s\n' "${luks_list[@]}"
+    return 2
+  fi
+
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# Rebuild detection
+# ---------------------------------------------------------------------------
+
+# Detect whether the system uses UKI (Unified Kernel Image) or traditional
+# initramfs.  Omarchy uses UKI + Limine by default.
+
+REBUILD_CMD=()
+_detect_rebuild_cmd() {
+  if command -v limine-mkinitcpio &>/dev/null \
+    && grep -q 'ENABLE_UKI=yes' /etc/default/limine 2>/dev/null; then
+    REBUILD_CMD=(limine-mkinitcpio)
+  else
+    REBUILD_CMD=(mkinitcpio -P)
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# State checks
+# ---------------------------------------------------------------------------
+
+keyfile_on_disk() {
+  [[ -f "$KEYFILE_PATH" ]]
+}
+
+# Test whether the keyfile (if it exists) is a valid LUKS passphrase
+# for the given device.
+keyfile_in_luks() {
+  local luks_dev="$1"
+  if ! keyfile_on_disk; then
+    return 1
+  fi
+  cryptsetup luksOpen --test-passphrase \
+    --key-file "$KEYFILE_PATH" "$luks_dev" 2>/dev/null
+}
+
+# Check if the keyfile path appears in any active mkinitcpio config
+# (either the main config or a drop-in).
+keyfile_in_mkinitcpio() {
+  if [[ -f "$MKC_DROPIN" ]] && grep -qF "$KEYFILE_PATH" "$MKC_DROPIN"; then
+    return 0
+  fi
+  if grep -qF "$KEYFILE_PATH" "$MKC_CONF" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# Actions
+# ---------------------------------------------------------------------------
+
+do_enable() {
+  local luks_dev="$1"
+  local dry_run="$2"
+  local force="$3"
+
+  # -- Check current state ---------------------------------------------------
+  if keyfile_in_luks "$luks_dev" && keyfile_in_mkinitcpio; then
+    info "Already set up: keyfile exists in LUKS and mkinitcpio."
+    info "Nothing to do."
+    return 0
+  fi
+
+  # -- Confirmation ----------------------------------------------------------
+  if [[ "$force" != "yes" ]]; then
+    info ""
+    info "This will configure automatic LUKS unlock for:"
+    info "  LUKS device:  $luks_dev"
+    info "  Keyfile:      $KEYFILE_PATH"
+    info ""
+    info "The original LUKS passphrase is preserved.  You can undo this"
+    info "later with:  $0 --revert"
+    info ""
+    printf "Continue? [y/N] "
+    read -r confirm
+    case "$confirm" in
+      y|Y|yes|YES) ;;
+      *) die "Aborted." ;;
+    esac
+  fi
+
+  # -- Step 1: Create keyfile ------------------------------------------------
+  if keyfile_on_disk; then
+    warn "Keyfile already exists at $KEYFILE_PATH — skipping creation."
+    warn "If it is corrupted, delete it and re-run."
+  else
+    step "Creating keyfile: $KEYFILE_PATH"
+    if [[ "$dry_run" == "yes" ]]; then
+      info "  would run: dd if=/dev/urandom of=$KEYFILE_PATH bs=1024 count=4"
+    else
+      dd if=/dev/urandom of="$KEYFILE_PATH" bs=1024 count=4 2>/dev/null
+      chmod 000 "$KEYFILE_PATH"
+      info "  done"
+    fi
+  fi
+
+  # -- Step 2: Register keyfile with LUKS ------------------------------------
+  if keyfile_in_luks "$luks_dev"; then
+    warn "Keyfile is already registered in LUKS — skipping."
+  else
+    step "Adding keyfile to LUKS: $luks_dev"
+    if [[ "$dry_run" == "yes" ]]; then
+      info "  would run: cryptsetup luksAddKey $luks_dev $KEYFILE_PATH"
+      info "  (would prompt for existing passphrase)"
+    else
+      info "  Enter the existing LUKS passphrase when prompted:"
+      if ! cryptsetup luksAddKey "$luks_dev" "$KEYFILE_PATH"; then
+        die "Failed to add keyfile to LUKS.  Is the passphrase correct?"
+      fi
+      info "  done"
+    fi
+  fi
+
+  # -- Step 3: Add keyfile to mkinitcpio FILES ------------------------------
+  if keyfile_in_mkinitcpio; then
+    warn "Keyfile already in mkinitcpio config — skipping."
+  else
+    step "Adding keyfile to mkinitcpio config"
+    if [[ "$dry_run" == "yes" ]]; then
+      info "  would create: $MKC_DROPIN"
+      info "  with: FILES=($KEYFILE_PATH)"
+    else
+      # Use a drop-in file so it does not touch the Omarchy-managed main
+      # config.  The main config has FILES=(), and our drop-in overrides it.
+      mkdir -p "$MKC_DROPIN_DIR"
+      printf 'FILES=(%s)\n' "$KEYFILE_PATH" >"$MKC_DROPIN"
+      chmod 644 "$MKC_DROPIN"
+      info "  wrote: $MKC_DROPIN"
+    fi
+  fi
+
+  # -- Step 4: Rebuild initramfs/UKI ----------------------------------------
+  _detect_rebuild_cmd
+  step "Rebuilding initramfs..."
+  info "  Using: ${REBUILD_CMD[*]}"
+  if [[ "$dry_run" == "yes" ]]; then
+    info "  would run: ${REBUILD_CMD[*]}"
+  else
+    "${REBUILD_CMD[@]}"
+    info "  done"
+  fi
+
+  info ""
+  info "Setup complete.  Reboot to test automatic unlock."
+}
+
+do_revert() {
+  local luks_dev="$1"
+  local dry_run="$2"
+  local force="$3"
+
+  if ! keyfile_on_disk && ! keyfile_in_luks "$luks_dev" \
+    && ! keyfile_in_mkinitcpio; then
+    info "Nothing to revert — no keyfile found in any location."
+    return 0
+  fi
+
+  if [[ "$force" != "yes" ]]; then
+    info ""
+    info "This will remove the LUKS auto-unlock keyfile for:"
+    info "  LUKS device:  $luks_dev"
+    info "  Keyfile:      $KEYFILE_PATH"
+    info ""
+    info "The original LUKS passphrase is preserved — you will need"
+    info "to enter it at every boot."
+    info ""
+    printf "Revert? [y/N] "
+    read -r confirm
+    case "$confirm" in
+      y|Y|yes|YES) ;;
+      *) die "Aborted." ;;
+    esac
+  fi
+
+  # -- Step 1: Remove keyfile from LUKS --------------------------------------
+  if keyfile_in_luks "$luks_dev"; then
+    step "Removing keyfile from LUKS: $luks_dev"
+    if [[ "$dry_run" == "yes" ]]; then
+      info "  would run: cryptsetup luksRemoveKey $luks_dev $KEYFILE_PATH"
+    else
+      if ! cryptsetup luksRemoveKey "$luks_dev" "$KEYFILE_PATH"; then
+        die "Failed to remove keyfile from LUKS."
+      fi
+      info "  done"
+    fi
+  else
+    warn "Keyfile not registered in LUKS — skipping."
+  fi
+
+  # -- Step 2: Remove keyfile from disk --------------------------------------
+  if keyfile_on_disk; then
+    step "Removing keyfile: $KEYFILE_PATH"
+    if [[ "$dry_run" == "yes" ]]; then
+      info "  would run: rm -f $KEYFILE_PATH"
+    else
+      rm -f "$KEYFILE_PATH"
+      info "  done"
+    fi
+  else
+    warn "Keyfile not found on disk — skipping."
+  fi
+
+  # -- Step 3: Remove mkinitcpio drop-in -------------------------------------
+  if [[ -f "$MKC_DROPIN" ]]; then
+    step "Removing mkinitcpio config: $MKC_DROPIN"
+    if [[ "$dry_run" == "yes" ]]; then
+      info "  would run: rm -f $MKC_DROPIN"
+    else
+      rm -f "$MKC_DROPIN"
+      info "  done"
+    fi
+  fi
+
+  # -- Step 4: Rebuild initramfs/UKI ----------------------------------------
+  _detect_rebuild_cmd
+  step "Rebuilding initramfs..."
+  info "  Using: ${REBUILD_CMD[*]}"
+  if [[ "$dry_run" == "yes" ]]; then
+    info "  would run: ${REBUILD_CMD[*]}"
+  else
+    "${REBUILD_CMD[@]}"
+    info "  done"
+  fi
+
+  info ""
+  info "Revert complete.  Reboot to confirm password prompt returns."
+}
+
+do_status() {
+  local luks_dev="$1"
+  local exit_code=0
+
+  info "=== LUKS auto-unlock status ==="
+  info ""
+
+  # LUKS device
+  info "LUKS device:  ${luks_dev:-NOT FOUND}"
+  if [[ -z "${luks_dev:-}" ]]; then
+    exit_code=1
+  fi
+
+  # Keyfile on disk
+  if keyfile_on_disk; then
+    local size
+    size=$(stat -c%s "$KEYFILE_PATH" 2>/dev/null || echo "?")
+    info "Keyfile:      present ($size bytes, $(stat -c%a "$KEYFILE_PATH" 2>/dev/null) permissions)"
+  else
+    info "Keyfile:      not present"
+  fi
+
+  # Keyfile in LUKS
+  if [[ -n "${luks_dev:-}" ]]; then
+    if keyfile_in_luks "$luks_dev"; then
+      info "LUKS slot:    registered"
+    else
+      info "LUKS slot:    not registered"
+    fi
+  fi
+
+  # Keyfile in mkinitcpio
+  if keyfile_in_mkinitcpio; then
+    info "mkinitcpio:   configured (FILES includes keyfile)"
+  else
+    info "mkinitcpio:   not configured"
+  fi
+
+  # Full state tally
+  info ""
+  local score=0
+  keyfile_on_disk && ((score++)) || true
+  if [[ -n "${luks_dev:-}" ]]; then
+    keyfile_in_luks "$luks_dev" && ((score++)) || true
+  fi
+  keyfile_in_mkinitcpio && ((score++)) || true
+
+  case "$score" in
+    3) info "Overall:      fully configured ✓" ;;
+    0) info "Overall:      not configured" ;;
+    *) info "Overall:      partial (run enable again to fix)" ;;
+  esac
+
+  return "$exit_code"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+  local dry_run="no"
+  local force="no"
+  local revert="no"
+  local status="no"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run)
+        dry_run="yes"
+        shift
+        ;;
+      --force)
+        force="yes"
+        shift
+        ;;
+      --revert)
+        revert="yes"
+        shift
+        ;;
+      --status)
+        status="yes"
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        die "Unknown option: $1 (try --help)"
+        ;;
+    esac
+  done
+
+  # --status does not require root (reads only)
+  if [[ "$status" == "yes" ]]; then
+    local luks_dev
+    luks_dev=$(detect_luks_device 2>/dev/null || true)
+    do_status "${luks_dev:-}"
+    exit
+  fi
+
+  require_root
+
+  # Detect LUKS device
+  local luks_dev
+  luks_dev=$(detect_luks_device) || {
+    local rc=$?
+    if (( rc == 2 )); then
+      die "Multiple LUKS devices found but none maps to /.  Cannot auto-detect."
+    fi
+    die "No LUKS device found.  This system does not appear to use disk encryption."
+  }
+
+  if [[ "$revert" == "yes" ]]; then
+    do_revert "$luks_dev" "$dry_run" "$force"
+  else
+    do_enable "$luks_dev" "$dry_run" "$force"
+  fi
+}
+
+main "$@"
