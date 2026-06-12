@@ -102,6 +102,7 @@ alias g='git'
 alias v='nvim'
 alias vim='nvim'
 alias svim='sudo -E nvim'
+alias zed='zeditor'
 alias copy='wl-copy'
 alias paste='wl-paste'
 
