@@ -102,6 +102,10 @@ packages:
   source: pacman
   device: all
   os: all
+- name: openssh
+  source: pacman
+  device: desktop
+  os: all
 - name: opentabletdriver
   source: aur
   device: all
