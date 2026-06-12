@@ -1,0 +1,17 @@
+
+{
+    "name": "com.8bit.bitwarden",
+    "description": "Bitwarden desktop adapter",
+{{- if false }}
+    "path": "{{ lookPath "bitwarden" | default "/usr/bin/bitwarden" }}",
+{{- else }}
+    "path": "~/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts/.bitwarden_desktop_proxy",
+{{- end }}
+    "type": "stdio",
+    "allowed_origins": [
+        "chrome-extension://nngceckbapebfimnlniiiahkandclblb/",
+        "chrome-extension://hccnnhgbibccigepcmlgppchkpfdophk/",
+        "chrome-extension://jbkfoedolllekgbhcbcoahefnbanhhlh/",
+        "chrome-extension://ccnckbpmaceehanjmeomladnmlffdjgn/"
+    ]
+}
