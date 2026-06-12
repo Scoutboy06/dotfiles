@@ -1,13 +1,6 @@
 # Environment variables
 env = EDITOR,nvim
 
-# Core services
-#exec-once = elephant                                      # App launcher backend (for walker)
-
-# Extra autostart processes
-# exec-once = uwsm app -- my-service
-
-#exec-once = uwsm app -- waybar
 {{- if .useHyprlockOnBoot }}
 exec-once = uwsm app -- hyprlock --immediate-render
 {{- end }}
