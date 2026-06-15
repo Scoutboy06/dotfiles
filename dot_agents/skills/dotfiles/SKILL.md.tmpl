@@ -1,0 +1,18 @@
+---
+name: dotfiles
+description: Provides the agent with the source directory path of this chezmoi-managed dotfiles repository.
+---
+
+# Dotfiles Context
+
+Describes the chezmoi-managed dotfiles repository location so agents can
+reference files and run commands without needing to be cd'd into the repo.
+
+## Dotfiles Source Directory
+
+```
+{{ .chezmoi.sourceDir }}
+```
+
+When referencing files or running commands that need the dotfiles root, use the
+path above.
