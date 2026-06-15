@@ -1,3 +1,4 @@
+# chezmoi:template
 # ~/.zshrc - Zsh configuration
 
 # ----- History -----
@@ -41,7 +42,7 @@ bindkey '^[[1;5C' forward-word          # Ctrl+Right
 bindkey '^[[1;5D' backward-word         # Ctrl+Left
 
 # ----- Environment -----
-export EDITOR="${EDITOR:-nvim}"
+export EDITOR="${EDITOR:-{{ .editor }}}"
 export VISUAL="$EDITOR"
 export PAGER="${PAGER:-less}"
 export LESS='-R --mouse --wheel-lines=3'
@@ -51,6 +52,9 @@ export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+# Custom directories
+export PROJECTS_DIR="${PROJECT_DIR:-$HOME/p}"
 
 # PATH additions
 typeset -U path  # Remove duplicates
@@ -203,4 +207,3 @@ fi
 
 # ----- Local overrides -----
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
-

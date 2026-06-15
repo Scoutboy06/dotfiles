@@ -1,5 +1,5 @@
 # Environment variables
-env = EDITOR,nvim
+env = EDITOR,{{ .editor }}
 
 {{- if .useHyprlockOnBoot }}
 exec-once = uwsm app -- hyprlock --immediate-render
