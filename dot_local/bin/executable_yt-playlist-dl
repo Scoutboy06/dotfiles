@@ -249,6 +249,7 @@ def download_playlist_videos(
     downloaded = []
     deduped = []
     failed = []
+    session_video_ids: list[str] = []
 
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -261,7 +262,7 @@ def download_playlist_videos(
             log_callback(
                 f"Failed to fetch playlist: {extract_ytdlp_error(result.stderr)}"
             )
-            return downloaded, deduped, failed
+            return downloaded, deduped, failed, session_video_ids
 
         # Parse JSON output
         video_urls = []
@@ -276,7 +277,7 @@ def download_playlist_videos(
 
         if not video_urls:
             log_callback("No videos found in playlist")
-            return downloaded, deduped, failed
+            return downloaded, deduped, failed, session_video_ids
 
         log_callback(f"Found {len(video_urls)} videos in playlist\n")
 
@@ -290,6 +291,7 @@ def download_playlist_videos(
                 log_callback(f"Could not extract video ID from {video_url}")
                 failed.append(video_url)
                 continue
+            session_video_ids.append(video_id)
 
             # Check if already in cache
             if video_id in manifest.videos:
@@ -385,7 +387,7 @@ def download_playlist_videos(
     except Exception as e:
         log_callback(f"Error: {str(e)}")
 
-    return downloaded, deduped, failed
+    return downloaded, deduped, failed, session_video_ids
 
 
 def create_hardlinks(
@@ -437,7 +439,7 @@ class DownloadWorker(QObject):
 
     progress = pyqtSignal(int, int, str)  # current, total, message
     log = pyqtSignal(str)
-    finished = pyqtSignal(bool, int, int, int)  # success, downloaded, deduped, failed
+    finished = pyqtSignal(bool, int, int, int, list)  # success, downloaded, deduped, failed, session_video_ids
 
     def __init__(self, playlist_url: str, cache_dir: Path, manifest: Manifest):
         super().__init__()
@@ -446,7 +448,7 @@ class DownloadWorker(QObject):
         self.manifest = manifest
 
     def run(self):
-        downloaded, deduped, failed = download_playlist_videos(
+        downloaded, deduped, failed, session_video_ids = download_playlist_videos(
             self.playlist_url,
             self.cache_dir,
             self.manifest,
@@ -455,7 +457,7 @@ class DownloadWorker(QObject):
         )
 
         success = len(failed) == 0
-        self.finished.emit(success, len(downloaded), len(deduped), len(failed))
+        self.finished.emit(success, len(downloaded), len(deduped), len(failed), session_video_ids)
 
 
 # ============================================================================
@@ -613,7 +615,8 @@ class VideoWorkflowApp(QMainWindow):
         self.log_output.ensureCursorVisible()
 
     def on_download_finished(
-        self, success: bool, downloaded: int, deduped: int, failed: int
+        self, success: bool, downloaded: int, deduped: int, failed: int,
+        session_video_ids: list[str],
     ):
         self.thread.quit()
         self.thread.wait()
@@ -624,16 +627,10 @@ class VideoWorkflowApp(QMainWindow):
         # Get video IDs for hardlinking
         project_path = self.current_project_path
 
-        video_ids = [
-            vid
-            for vid, rec in self.manifest.videos.items()
-            if vid in [rec.video_id for rec in self.manifest.videos.values()]
-        ]
-
         # Create hardlinks
         self.log("\nCreating hardlinks...")
         linked = create_hardlinks(
-            video_ids, self.manifest, self.cache_dir, project_path, self.log
+            session_video_ids, self.manifest, self.cache_dir, project_path, self.log
         )
 
         # Summary
