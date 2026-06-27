@@ -144,6 +144,49 @@ o() {
   op run --env-file=.env -- "$@"
 }
 
+b() {
+  if [[ ! -f .env ]]; then
+    echo "❌ .env not found in $(pwd)"
+    return 1
+  fi
+
+  local dry_run=false
+  [[ "$1" == "--dry-run" || "$1" == "--test" ]] && dry_run=true && shift
+
+  if ! $dry_run; then
+    if ! command -v bw &>/dev/null; then
+      echo "❌ bw (Bitwarden CLI) not found"
+      return 1
+    fi
+    if [[ -z "${BW_SESSION:-}" ]]; then
+      BW_SESSION=$(bw unlock --raw 2>/dev/null) || return 1
+      export BW_SESSION
+    fi
+  fi
+
+  (
+    while IFS='=' read -r key value; do
+      [[ -n "$key" && "$key" != '#'* ]] || continue
+      if [[ "$value" == bw://* ]]; then
+        if $dry_run; then
+          value="<resolved-from-bw>"
+        else
+          local ref="${value#bw://}"
+          local item="${ref%%/*}"
+          local field="${ref#*/}"
+          [[ "$field" == "$item" ]] && field="password"
+          value=$(bw get "$field" "$item" 2>/dev/null) || {
+            echo "⚠️  Failed to fetch $value" >&2
+            continue
+          }
+        fi
+      fi
+      export "$key=$value"
+    done < .env
+    "$@"
+  )
+}
+
 inspect() {
   [ -z "$1" ] && { echo "Usage: inspect <command>"; return 1; }
   local target
