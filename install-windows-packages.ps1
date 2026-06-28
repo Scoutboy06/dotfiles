@@ -1,0 +1,5 @@
+# TODO: Install packages from .chezmoidata/packages-winget.yaml
+# 1. Parse the YAML file (ConvertFrom-Yaml or manual)
+# 2. Filter by device + requires_de
+# 3. Run: winget install <package-id>
+Write-Host "TODO: implement Windows package installation" -ForegroundColor Yellow

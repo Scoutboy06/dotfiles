@@ -3,6 +3,16 @@
 {{- $isLaptop := or (eq $hostname "eliaslt") (eq $hostname "EliasLT") -}}
 {{- $isOmarchy := lookPath "omarchy" | not | not -}}
 
+{{- $device := "unknown" -}}
+{{- if $isDesktop }}
+{{-   $device = "eliaspc" }}
+{{- else if $isLaptop }}
+{{-   $device = "eliaslt" }}
+{{- end }}
+
+{{- $isWSL := (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+{{- $hasDE := or (eq .chezmoi.os "windows") $isOmarchy (and (not $isWSL) (not (eq $device "server"))) -}}
+
 {{- $forceUseHyprlockOnBoot := env "FORCE_HYPRLOCK_ON_BOOT" | eq "true" -}}
 {{- $useHyprlockOnBoot := or $forceUseHyprlockOnBoot (and $isDesktop $isOmarchy) -}}
 
@@ -10,9 +20,11 @@ sourceDir = "/home/elias/p/dotfiles"
 
 [data]
   hostname = {{ $hostname | quote }}
+  device = {{ $device | quote }}
   isDesktop = {{ $isDesktop }}
   isLaptop = {{ $isLaptop }}
   isOmarchy = {{ $isOmarchy }}
+  hasDE = {{ $hasDE }}
 {{- if $isDesktop }}
   monitorScale = 1.0
   primaryMonitor = "DP-1"
@@ -22,15 +34,6 @@ sourceDir = "/home/elias/p/dotfiles"
 {{- end }}
   useHyprlockOnBoot = {{ $useHyprlockOnBoot }}
   editor = "zeditor"
-
-# [merge]
-# command = "nvim"
-# args = [
-#   "-d",
-#   {{ printf "%q" "{{ .Destination }}" }},
-#   {{ printf "%q" "{{ .Source }}" }},
-#   {{ printf "%q" "{{ .Target }}" }}
-# ]
 
 [merge]
 command = "bash"
