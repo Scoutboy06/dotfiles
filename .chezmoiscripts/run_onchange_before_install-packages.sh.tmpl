@@ -13,6 +13,7 @@
 # packages-pacman.yaml: {{ include ".chezmoidata/packages-pacman.yaml" | sha256sum }}
 # packages-aur.yaml: {{ include ".chezmoidata/packages-aur.yaml" | sha256sum }}
 # packages-apt.yaml: {{ include ".chezmoidata/packages-apt.yaml" | sha256sum }}
+# packages-bun.yaml: {{ include ".chezmoidata/packages-bun.yaml" | sha256sum }}
 
 set -euo pipefail
 
@@ -47,11 +48,14 @@ exit 0
 {{ $pacmanPkgs := (include ".chezmoidata/packages-pacman.yaml" | fromYaml).packages }}
 {{ $aurPkgs := (include ".chezmoidata/packages-aur.yaml" | fromYaml).packages }}
 {{ $aptPkgs := (include ".chezmoidata/packages-apt.yaml" | fromYaml).packages }}
+{{ $bunPkgs := (include ".chezmoidata/packages-bun.yaml" | fromYaml).packages }}
 
 install_packages_main() {
     local pacman_packages=()
     local aur_packages=()
     local apt_packages=()
+    local bun_packages=()
+    local bun_packages_ignore_scripts=()
 
     # --- Generate filtered package arrays from templates ---
 {{ range $pkg := $pacmanPkgs }}
@@ -74,6 +78,15 @@ install_packages_main() {
 {{ if or (eq $pkg.device "all") (eq $pkg.device $device) }}
 {{ if or (not $pkg.requires_de) $hasDE }}
     apt_packages+=("{{ $pkg.name }}")
+{{ end }}
+{{ end }}
+{{ end }}
+
+{{ range $pkg := $bunPkgs }}
+{{ if or (eq $pkg.device "all") (eq $pkg.device $device) }}
+{{ if or (not $pkg.requires_de) $hasDE }}
+    bun_packages+=("{{ $pkg.name }}")
+    bun_packages_ignore_scripts+=({{ if $pkg.ignore_scripts }}true{{ else }}false{{ end }})
 {{ end }}
 {{ end }}
 {{ end }}
@@ -142,6 +155,29 @@ install_packages_main() {
         else
             log_info "No new APT packages to install"
         fi
+    fi
+
+    # --- Bun global packages (runs after package managers so bun itself is installed) ---
+    if command -v bun &>/dev/null && [[ ${#bun_packages[@]} -gt 0 ]]; then
+        log_info "bun detected"
+        local installed_bun
+        installed_bun=$(bun -g list 2>/dev/null | grep -oP '^\s*\- \K\S+' || true)
+
+        for i in "${!bun_packages[@]}"; do
+            pkg="${bun_packages[$i]}"
+            if grep -q "^${pkg}$" <(echo "$installed_bun"); then
+                continue
+            fi
+            if [[ "${bun_packages_ignore_scripts[$i]}" == "true" ]]; then
+                log_info "Installing bun global package: $pkg (--ignore-scripts)"
+                bun add -g --ignore-scripts "$pkg"
+            else
+                log_info "Installing bun global package: $pkg"
+                bun add -g "$pkg"
+            fi
+        done
+    elif [[ ${#bun_packages[@]} -gt 0 ]]; then
+        log_warn "Bun packages defined but bun not found. Skipping."
     fi
 }
 
