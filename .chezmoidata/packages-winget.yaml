@@ -3,6 +3,7 @@
 # Each item is a package with fields:
 # name:        The package ID (REQUIRED)
 # device:      all|eliaspc|eliaslt|worklt|server (REQUIRED)
-# requires_de: true|false (REQUIRED)
 #
-packages: []
+packages:
+- name: Oven-sh.Bun
+  device: all
