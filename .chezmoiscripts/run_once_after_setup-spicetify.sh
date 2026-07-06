@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Guard: skip if spicetify isn't installed
+if ! command -v spicetify &>/dev/null; then
+    echo "[INFO] spicetify not found — skipping Spicetify setup"
+    exit 0
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
