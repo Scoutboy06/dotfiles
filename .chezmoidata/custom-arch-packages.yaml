@@ -1,5 +1,6 @@
-# Custom packages built from remote PKGBUILDs
-# Used by run_onchange_before_install-custom-packages.sh.tmpl
+# Arch-only custom packages built from remote PKGBUILDs (makepkg).
+# Used by run_onchange_after_install-custom-arch-packages.sh.tmpl
+# Skipped on non-Arch systems (no makepkg).
 #
 # Each entry should have:
 #   name: package name (used for build directory)

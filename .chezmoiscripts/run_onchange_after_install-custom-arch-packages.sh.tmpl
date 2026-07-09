@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # chezmoi:template:left-delimiter="# {{" right-delimiter="}}"
 #
-# Build and install custom packages from remote git repos
-# This script runs automatically when custom-packages.yaml changes (run_onchange_)
+# Build and install Arch custom packages from remote git repos (makepkg/PKGBUILD)
+# This script runs automatically when custom-arch-packages.yaml changes (run_onchange_)
+# Non-Arch systems (no makepkg) are skipped cleanly.
 #
-# custom-packages.yaml hash: # {{ include ".chezmoidata/custom-packages.yaml" | sha256sum }}
+# custom-arch-packages.yaml hash: # {{ include ".chezmoidata/custom-arch-packages.yaml" | sha256sum }}
 
 set -euo pipefail
 
@@ -24,6 +25,12 @@ BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/chezmoi-custom-packages"
 if [[ $EUID -eq 0 ]]; then
     log_error "Do not run this script as root"
     exit 1
+fi
+
+# These packages are built from Arch PKGBUILDs. Skip cleanly on non-Arch systems.
+if ! command -v makepkg &>/dev/null; then
+    log_warn "makepkg not found — skipping Arch custom packages (non-Arch system)"
+    exit 0
 fi
 
 # Clone or update repo, then build and install
