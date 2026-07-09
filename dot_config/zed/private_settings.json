@@ -33,9 +33,7 @@
   "terminal": {
     "font_size": 13.0,
     "font_family": "FiraCode Nerd Font Mono",
-    "font_fallbacks": [
-      "monospace"
-    ]
+    "font_fallbacks": ["monospace"]
   },
   "base_keymap": "VSCode",
   "multi_cursor_modifier": "cmd_or_ctrl",
@@ -58,12 +56,8 @@
   ],
   "buffer_font_family": "FiraCode Nerd Font",
   "file_types": {
-    "css": [
-      "*.postcss"
-    ],
-    "env": [
-      ".env"
-    ]
+    "css": ["*.postcss"],
+    "env": [".env"]
   },
   "linked_edits": true,
   "tab_size": 2,
@@ -84,4 +78,7 @@
   "ui_font_size": 16,
   "buffer_font_size": 15,
   "theme": "Omazed",
+  "status_bar": {
+    "line_endings_button": true
+  }
 }
