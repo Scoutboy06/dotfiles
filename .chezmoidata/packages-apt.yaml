@@ -5,4 +5,22 @@
 # device:      all|eliaspc|eliaslt|worklt|server (REQUIRED)
 # requires_de: true|false (REQUIRED)
 #
-packages: []
+packages:
+- name: starship
+  device: all
+  requires_de: false
+- name: zoxide
+  device: all
+  requires_de: false
+- name: fzf
+  device: all
+  requires_de: false
+- name: direnv
+  device: all
+  requires_de: false
+- name: eza
+  device: all
+  requires_de: false
+- name: bat
+  device: all
+  requires_de: false

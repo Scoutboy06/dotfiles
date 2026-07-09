@@ -3,7 +3,12 @@
 
 set -euo pipefail
 
-if [[ "$SHELL" != */zsh ]]; then
+# Check the actual login shell from the passwd database, not $SHELL — the
+# $SHELL env var reflects the current session and can read as zsh while the
+# login shell is still bash, silently skipping the change on a run_once script.
+current_shell="$(getent passwd "$USER" | cut -d: -f7)"
+
+if [[ "$current_shell" != */zsh ]]; then
     if command -v zsh &>/dev/null; then
         echo "Setting zsh as default shell..."
         chsh -s "$(which zsh)"
