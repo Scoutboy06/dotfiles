@@ -1,6 +1,7 @@
 # Repo files - not dotfiles
 AGENTS.md
 README.md
+CODE.md
 session-*.md
 
 # Build artifacts

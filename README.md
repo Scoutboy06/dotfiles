@@ -1,209 +1,112 @@
 # dotfiles
 
-Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/) for Arch Linux machines.
+Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/). Used across several machines and OSes (Arch/Omarchy, Ubuntu, WSL, Windows) to keep a consistent environment.
 
-## Quick Start (New Machine)
+## Quick start
 
-```bash
-# Install chezmoi and initialize from this repo
-chezmoi init --apply git@github.com:Scoutboy06/dotfiles.git
+### Linux
 
-# Or if chezmoi is already installed
-chezmoi init --apply Scoutboy06
-```
-
-On first run, chezmoi will:
-1. Create common home directories (Documents, Downloads, Pictures, etc.)
-2. Detect your machine (desktop `eliaspc` or laptop `eliaslt`)
-3. Install packages via pacman/paru (including zsh, neovim, etc.)
-4. Generate machine-specific configs (monitors, packages, etc.)
-5. Set zsh as your default shell
-6. Deploy neovim with LazyVim configuration
-
-## What's Included
-
-### Shell (zsh)
-- **Zsh** with sensible defaults (history, completion, key bindings)
-- **Starship** prompt with git status, language versions, cmd duration
-- **eza** for better `ls` with icons
-- **zoxide** for smarter `cd` (remembers directories)
-- **fzf** for fuzzy finding
-- **direnv** for per-directory environment variables
-
-### Editor (neovim)
-- **LazyVim** distribution - batteries included
-- Auto-installs plugins on first launch
-- LSP, treesitter, telescope, and more
-- Tokyo Night colorscheme
-
-### Desktop (Hyprland)
-- Hyprland window manager with custom keybindings
-- Waybar status bar
-- Screenshot/screenrecord scripts
-- Idle lock with hyprlock
-
-## Manual Setup
-
-### Prerequisites
-
-- `chezmoi` (install with `pacman -S chezmoi`)
-- `paru` or `yay` (for AUR packages)
-
-### Apply configs
-
-Preview changes before applying:
+Install chezmoi:
 
 ```bash
-chezmoi diff
+# Arch
+sudo pacman -S chezmoi
+
+# Debian/Ubuntu (or any distro without a recent package)
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
 ```
 
-Apply all configs:
+Then install the dotfiles:
 
 ```bash
-chezmoi apply
+git clone git@github.com:Scoutboy06/dotfiles.git ~/p/dotfiles
+chezmoi init --source ~/p/dotfiles --apply
 ```
 
-Apply without running scripts (packages, shell change):
+### Windows
+
+Windows doesn't run chezmoi — only the package install script at the repo root:
+
+```powershell
+git clone git@github.com:Scoutboy06/dotfiles.git
+cd dotfiles
+.\install-windows-packages.ps1
+```
+
+## Machines
+
+Machine detection lives in `.chezmoi.toml.tmpl`, keyed on hostname:
+
+| Hostname | Device | Template variable |
+|----------|--------|-------------------|
+| `eliaspc` / `EliasPC` | Desktop | `.isDesktop` |
+| `eliaslt` / `EliasLT` | Laptop | `.isLaptop` |
+| `HQ-LAP-103` | Work laptop | `.isWorkLaptop` |
+
+Other template variables available in `.tmpl` files: `.device`, `.isOmarchy`, `.hasDE` (false on WSL/servers), `.monitorScale`, `.primaryMonitor`, `.useHyprlockOnBoot`, `.editor`.
+
+Machine-specific file exclusions (e.g. laptop-only battery monitor, eduroam) are in `.chezmoiignore`.
+
+## Everyday commands
 
 ```bash
-chezmoi apply --exclude=scripts
+chezmoi diff                       # preview what apply would change
+chezmoi apply                      # apply everything
+chezmoi apply --exclude=scripts    # apply configs only, skip install scripts
+chezmoi edit ~/.zshrc              # edit the source file behind a target
+chezmoi add ~/.config/app/x.toml   # start managing a new file
+chezmoi cd                         # jump to ~/p/dotfiles
+chezmoi execute-template < my_template.tmpl   # preview how a template renders
 ```
-
-### Add/edit configs
-
-Edit a managed file:
-
-```bash
-chezmoi edit ~/.config/hypr/bindings.conf
-```
-
-Add a new file to be managed:
-
-```bash
-chezmoi add ~/.config/someapp/config.toml
-```
-
-### Enable services
-
-After applying configs, enable the systemd user services:
-
-```bash
-systemctl --user enable --now disk-usage-watch.timer
-systemctl --user enable --now idle-lock-auto.timer
-
-# Laptop only
-systemctl --user enable --now battery-monitor.timer
-```
-
-## Machine-Specific Configuration
-
-Chezmoi uses templates for machine-specific configs. The machine is detected via hostname:
-
-| Hostname | Type | Monitor Scale | Primary Monitor |
-|----------|------|---------------|-----------------|
-| `eliaspc` | Desktop | 1 | DP-1 |
-| `eliaslt` | Laptop | 1.6 | eDP-1 |
-
-Template variables are defined in `.chezmoi.toml.tmpl` and available in `.tmpl` files:
-- `{{ .isDesktop }}` / `{{ .isLaptop }}`
-- `{{ .monitorScale }}`
-- `{{ .primaryMonitor }}`
-
-### Machine-specific files
-
-Some files are only deployed on certain machines (via `.chezmoiignore`):
-- `battery-monitor.service/timer` - laptop only
-- `.config/eduroam/` - laptop only
 
 ## Packages
 
-Packages are defined in `.chezmoidata/packages.yaml`:
+Package definitions live in `.packages/`, one YAML per manager, with entries filtered by `device` (`all`/`eliaspc`/`eliaslt`/`worklt`/`server`) and `requires_de`:
 
-```yaml
-common:    # All machines (pacman)
-aur:       # All machines (AUR)
-desktop:   # Desktop only
-laptop:    # Laptop only
-optional:  # Not auto-installed
-```
+| File | Installed with |
+|------|----------------|
+| `packages-pacman.yaml` | pacman (Arch) |
+| `packages-aur.yaml` | paru (Arch/AUR) |
+| `packages-apt.yaml` | apt (Debian/Ubuntu) |
+| `packages-bun.yaml` | bun (global packages) |
+| `packages-winget.yaml` | winget (Windows) |
+| `custom-arch-packages.yaml` | makepkg from remote PKGBUILDs (Arch only) |
 
-The package install script runs automatically when `packages.yaml` changes.
+The install scripts are `run_onchange_` — editing any package YAML re-runs them on the next `chezmoi apply`.
 
-Key packages installed:
-- **Shell**: zsh, starship, eza, zoxide, fzf, direnv
-- **Editor**: neovim, ripgrep, fd
-- **Desktop**: hyprland, waybar, hyprlock, hypridle
-- **Utils**: grim, slurp, satty (screenshots), gpu-screen-recorder
+## What's configured
 
-## Scripts
+- **Shell**: zsh with starship, zoxide, fzf, direnv, eza
+- **Desktop**: Hyprland + waybar + idle locking, mostly templated per machine
+- **Apps**: assorted configs under `dot_config/`
+- **Scripts**: Hyprland helpers and general utilities in `dot_local/bin/`
+- **Agent skills**: shared AI agent skills, symlinked into `~/.claude/skills`
 
-### Keybinding scripts (in `~/.local/bin/`)
-
-| Script | Description | Keybinding |
-|--------|-------------|------------|
-| `screenshot` | Smart screenshot (region/window/fullscreen) | `Print`, `Super+Print`, `Super+Shift+Print` |
-| `screenrecord` | Screen recording with audio options | `Super+Alt+Print` |
-| `brightness-display` | Display brightness control | `XF86MonBrightnessUp/Down` |
-| `audio-switch` | Cycle audio outputs | `Super+Mute` |
-| `hyprland-gaps-toggle` | Toggle window gaps | `Super+G` |
-| `lock-screen` | Lock with hyprlock | `Super+Shift+L` |
-
-### Utility scripts
-
-| Script | Description |
-|--------|-------------|
-| `csvcut` | Select CSV columns by header name |
-| `md-convert` | Convert HTML files to Markdown |
-| `snapper-cleanup` | Aggressive Btrfs snapshot cleanup |
-| `disk-usage-watch` | Monitor disk usage with notifications |
-| `disk-cleanup` | Interactive disk cleanup tool |
-| `battery-tui` | Battery info TUI |
-| `eduroam-setup` | Generate iwd eduroam profile (laptop) |
-| `check-agents-sync` | Check if agent skills need syncing |
-| `check-status` | Notify if dotfiles repo has uncommitted changes |
-
-## Project Structure
+## Repo layout
 
 ```
-dotfiles/                          # chezmoi source directory
-├── .chezmoi.toml.tmpl             # Machine detection template
-├── .chezmoidata/
-│   └── packages.yaml              # Package definitions
-├── .chezmoiscripts/
-│   ├── run_once_before_create-directories.sh
-│   ├── run_onchange_before_install-packages.sh.tmpl
-│   └── run_once_after_set-default-shell.sh
-├── .chezmoiignore                 # Files to skip per-machine
-├── dot_zshrc                      # Zsh configuration
-├── dot_config/
-│   ├── nvim/                      # Neovim (LazyVim)
-│   ├── starship.toml              # Starship prompt
-│   ├── hypr/                      # Hyprland configs
-│   │   ├── monitors.conf.tmpl     # Machine-specific monitors
-│   │   └── bindings.conf          # Keybindings
-│   ├── waybar/                    # Waybar config + scripts
-│   ├── themes/elias-jade/         # Custom theme
-│   ├── systemd/user/              # Systemd user services
-│   ├── idle-lock/                 # Idle lock config
-│   ├── OpenTabletDriver/          # Drawing tablet (desktop)
-│   └── sublime-text/              # Sublime Text syntax
-├── dot_local/bin/                 # User scripts
-└── dot_agents/skills/             # AI agent skills
+.
+├── .chezmoi.toml.tmpl            # Machine detection + template data
+├── .packages/                    # Package definitions, one YAML per manager
+├── .chezmoiscripts/              # run_once_* setup + run_onchange_* package installs
+├── .chezmoiignore                # Per-machine file exclusions
+├── dot_zshrc.tmpl                # Zsh configuration
+├── dot_config/                   # ~/.config configuration files
+├── dot_local/
+│   ├── bin/                      # Custom scripts and executables
+│   └── share/
+│       └── applications/         # Desktop entry files for applications
+├── dot_agents/
+│   └── skills/                   # Skills shared between AI agents
+├── dot_claude/
+│   └── symlink_skills/           # Symlink of dot_agents/skills into ~/.claude
+├── install-windows-packages.ps1  # Windows package installation
+├── AGENTS.md                     # Agent instructions (repo file, not deployed)
+└── CODE.md                       # Structure/convention requirements for agents
 ```
-
-## Customization
-
-### Zsh
-Add local overrides to `~/.zshrc.local` (not tracked by chezmoi).
-
-### Neovim
-Add custom plugins in `~/.config/nvim/lua/plugins/`.
-The config uses LazyVim - see [lazyvim.org](https://www.lazyvim.org/) for documentation.
-
-### Starship
-Edit `~/.config/starship.toml` or use `chezmoi edit ~/.config/starship.toml`.
 
 ## Notes
 
-- Configs adapted from [Omarchy](https://github.com/basecamp/omarchy) with standalone operation
-- See `AGENTS.md` for contributor/workflow notes
+- Local zsh overrides go in `~/.zshrc.local` (not tracked).
+- Merge conflicts open in VS Code via the custom `[merge]` command in `.chezmoi.toml.tmpl`.
+- Hyprland configs originally adapted from [Omarchy](https://github.com/basecamp/omarchy).

@@ -5,7 +5,7 @@
 # This script runs automatically when custom-arch-packages.yaml changes (run_onchange_)
 # Non-Arch systems (no makepkg) are skipped cleanly.
 #
-# custom-arch-packages.yaml hash: # {{ include ".chezmoidata/custom-arch-packages.yaml" | sha256sum }}
+# custom-arch-packages.yaml hash: # {{ include ".packages/custom-arch-packages.yaml" | sha256sum }}
 
 set -euo pipefail
 
@@ -66,7 +66,7 @@ build_and_install() {
 main() {
     log_info "Building custom packages from git repos..."
 
-# {{- range .custom_packages }}
+# {{- range (include ".packages/custom-arch-packages.yaml" | fromYaml).custom_packages }}
     build_and_install "# {{ .name }}" "# {{ .url }}"
 # {{- end }}
 

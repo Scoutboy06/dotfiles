@@ -35,7 +35,7 @@ def get_chezmoi_source_path() -> Path:
 
 # Chezmoi paths
 CHEZMOI_SOURCE = get_chezmoi_source_path()
-CHEZMOI_DATA = CHEZMOI_SOURCE / ".chezmoidata"
+CHEZMOI_DATA = CHEZMOI_SOURCE / ".packages"
 
 # Package data paths
 PACKAGES_YAML = CHEZMOI_DATA / "packages.yaml"

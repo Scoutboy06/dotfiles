@@ -10,10 +10,10 @@
 # The script runs automatically when any packages-*.yaml changes.
 #
 # Hashes (triggers re-execution if any file changes):
-# packages-pacman.yaml: {{ include ".chezmoidata/packages-pacman.yaml" | sha256sum }}
-# packages-aur.yaml: {{ include ".chezmoidata/packages-aur.yaml" | sha256sum }}
-# packages-apt.yaml: {{ include ".chezmoidata/packages-apt.yaml" | sha256sum }}
-# packages-bun.yaml: {{ include ".chezmoidata/packages-bun.yaml" | sha256sum }}
+# packages-pacman.yaml: {{ include ".packages/packages-pacman.yaml" | sha256sum }}
+# packages-aur.yaml: {{ include ".packages/packages-aur.yaml" | sha256sum }}
+# packages-apt.yaml: {{ include ".packages/packages-apt.yaml" | sha256sum }}
+# packages-bun.yaml: {{ include ".packages/packages-bun.yaml" | sha256sum }}
 
 set -euo pipefail
 
@@ -45,10 +45,10 @@ exit 0
 {{ $device := .device }}
 {{ $hasDE := .hasDE }}
 
-{{ $pacmanPkgs := (include ".chezmoidata/packages-pacman.yaml" | fromYaml).packages }}
-{{ $aurPkgs := (include ".chezmoidata/packages-aur.yaml" | fromYaml).packages }}
-{{ $aptPkgs := (include ".chezmoidata/packages-apt.yaml" | fromYaml).packages }}
-{{ $bunPkgs := (include ".chezmoidata/packages-bun.yaml" | fromYaml).packages }}
+{{ $pacmanPkgs := (include ".packages/packages-pacman.yaml" | fromYaml).packages }}
+{{ $aurPkgs := (include ".packages/packages-aur.yaml" | fromYaml).packages }}
+{{ $aptPkgs := (include ".packages/packages-apt.yaml" | fromYaml).packages }}
+{{ $bunPkgs := (include ".packages/packages-bun.yaml" | fromYaml).packages }}
 
 install_packages_main() {
     local pacman_packages=()

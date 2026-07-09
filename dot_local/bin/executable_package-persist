@@ -2,7 +2,7 @@
 """Manage persistence of manually installed packages into dotfiles.
 
 Tracks packages installed via pacman/yay and prompts the user to decide
-whether to persist them to .chezmoidata/packages.yaml or ignore them.
+whether to persist them to .packages/packages.yaml or ignore them.
 
 Usage:
     package-persist check    # Check for new packages, notify if found
@@ -43,7 +43,7 @@ def get_packages_yaml_path() -> Path:
             check=True,
         )
         source_dir = Path(result.stdout.strip())
-        return source_dir / ".chezmoidata" / "packages.yaml"
+        return source_dir / ".packages" / "packages.yaml"
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         print(f"Error: could not get chezmoi source path: {e}", file=sys.stderr)
         print("Make sure chezmoi is installed and configured.", file=sys.stderr)
