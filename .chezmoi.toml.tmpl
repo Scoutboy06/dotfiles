@@ -1,6 +1,7 @@
 {{- $hostname := .chezmoi.hostname -}}
 {{- $isDesktop := or (eq $hostname "EliasPC") (eq $hostname "eliaspc") -}}
 {{- $isLaptop := or (eq $hostname "eliaslt") (eq $hostname "EliasLT") -}}
+{{- $isWorkLaptop := eq $hostname "HQ-LAP-103" -}}
 {{- $isOmarchy := lookPath "omarchy" | not | not -}}
 
 {{- $device := "unknown" -}}
@@ -23,6 +24,7 @@ sourceDir = "/home/elias/p/dotfiles"
   device = {{ $device | quote }}
   isDesktop = {{ $isDesktop }}
   isLaptop = {{ $isLaptop }}
+  isWorkLaptop = {{ $isWorkLaptop }}
   isOmarchy = {{ $isOmarchy }}
   hasDE = {{ $hasDE }}
 {{- if $isDesktop }}
