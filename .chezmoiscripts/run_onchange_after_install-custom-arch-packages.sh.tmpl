@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # chezmoi:template:left-delimiter="# {{" right-delimiter="}}"
 #
-# Build and install Arch custom packages from remote git repos (makepkg/PKGBUILD)
+# Build and install Arch custom packages from remote git repos (makepkg/PKGBUILD). Filters by environment (respects hasDE).
 # This script runs automatically when custom-arch-packages.yaml changes (run_onchange_)
 # Non-Arch systems (no makepkg) are skipped cleanly.
 #
@@ -66,8 +66,11 @@ build_and_install() {
 main() {
     log_info "Building custom packages from git repos..."
 
+# {{- $hasDE := .hasDE -}}
 # {{- range (include ".packages/custom-arch-packages.yaml" | fromYaml).custom_packages }}
+# {{- if or (has "dev" (splitList "," .environment)) $hasDE }}
     build_and_install "# {{ .name }}" "# {{ .url }}"
+# {{- end }}
 # {{- end }}
 
     log_info "Custom package installation complete!"

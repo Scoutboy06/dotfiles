@@ -3,7 +3,11 @@
 # Each item is a package with fields:
 # name:        The package ID (REQUIRED)
 # device:      all|eliaspc|eliaslt|worklt|server (REQUIRED)
+# environment: desktop|dev (REQUIRED)
+#
+# device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
 - name: Oven-sh.Bun
   device: all
+  environment: dev

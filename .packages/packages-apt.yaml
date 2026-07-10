@@ -3,24 +3,26 @@
 # Each item is a package with fields:
 # name:        The package name (REQUIRED)
 # device:      all|eliaspc|eliaslt|worklt|server (REQUIRED)
-# requires_de: true|false (REQUIRED)
+# environment: desktop|dev (REQUIRED)
+#
+# device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
 - name: starship
   device: all
-  requires_de: false
+  environment: dev
 - name: zoxide
   device: all
-  requires_de: false
+  environment: dev
 - name: fzf
   device: all
-  requires_de: false
+  environment: dev
 - name: direnv
   device: all
-  requires_de: false
+  environment: dev
 - name: eza
   device: all
-  requires_de: false
+  environment: dev
 - name: bat
   device: all
-  requires_de: false
+  environment: dev

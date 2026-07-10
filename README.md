@@ -61,7 +61,7 @@ chezmoi execute-template < my_template.tmpl   # preview how a template renders
 
 ## Packages
 
-Package definitions live in `.packages/`, one YAML per manager, with entries filtered by `device` (`all`/`eliaspc`/`eliaslt`/`worklt`/`server`) and `requires_de`:
+Package definitions live in `.packages/`, one YAML per manager, with entries filtered by `device` and `environment`:
 
 | File | Installed with |
 |------|----------------|

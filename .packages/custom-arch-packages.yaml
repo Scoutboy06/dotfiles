@@ -5,7 +5,11 @@
 # Each entry should have:
 #   name: package name (used for build directory)
 #   url: git URL to clone from
+#   environment: desktop|dev (REQUIRED)
+#
+# environment accepts comma-separated lists (e.g., environment: desktop,dev).
 
 custom_packages:
   - name: gitm
     url: https://github.com/Scoutboy06/gitm.git
+    environment: dev

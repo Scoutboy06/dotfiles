@@ -19,5 +19,5 @@ while `include` can still read files from it. Do not rename it back.
 - Every package entry MUST have all three fields:
   - `name:` — the package name as known by that manager
   - `device:` — one of `all` | `eliaspc` | `eliaslt` | `worklt` | `server`
-  - `requires_de:` — `true` if the package only makes sense with a desktop environment (filtered out on WSL/servers via `.hasDE`)
+  - `environment:` — comma-separated list of environments the package belongs to. Supported values: `desktop` (GUI apps, only installed when `.hasDE` is true), `dev` (CLI/dev tools, always installed). Examples: `dev`, `desktop`, `desktop,dev`.
 - Keep the explanatory header comment at the top of each file up to date if the schema changes.

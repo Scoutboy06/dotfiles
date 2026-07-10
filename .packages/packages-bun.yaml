@@ -3,11 +3,13 @@
 # Each item is a package with fields:
 # name:         The package name (REQUIRED)
 # device:       all|eliaspc|eliaslt|worklt|server (REQUIRED)
-# requires_de:  true|false (REQUIRED)
+# environment: desktop|dev (REQUIRED)
 # ignore_scripts: true|false (optional, default false)
+#
+# device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
 - name: "@earendil-works/pi-coding-agent"
   device: all
-  requires_de: false
+  environment: dev
   ignore_scripts: true

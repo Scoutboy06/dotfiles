@@ -3,42 +3,44 @@
 # Each item is a package with fields:
 # name:        The package name (REQUIRED)
 # device:      all|eliaspc|eliaslt|worklt|server (REQUIRED)
-# requires_de: true|false (REQUIRED)
+# environment: desktop|dev (REQUIRED)
+#
+# device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
 - name: bitwarden-bin
   device: all
-  requires_de: true
+  environment: desktop
 - name: bitwarden-cli-bin
   device: all
-  requires_de: false
+  environment: dev
 - name: brave-bin
   device: all
-  requires_de: true
+  environment: desktop
 - name: latex-mk
   device: all
-  requires_de: false
+  environment: dev
 - name: ngrok
   device: all
-  requires_de: false
+  environment: dev
 - name: opentabletdriver
   device: all
-  requires_de: true
+  environment: desktop
 - name: pomodoro-tui
   device: all
-  requires_de: false
+  environment: dev
 - name: r-quick-share-bin
   device: all
-  requires_de: true
+  environment: desktop
 - name: spicetify-cli
   device: all
-  requires_de: true
+  environment: desktop
 - name: vesktop-bin
   device: all
-  requires_de: true
+  environment: desktop
 - name: whisper.cpp-cuda-bin
   device: all
-  requires_de: false
+  environment: dev
 - name: zen-browser-bin
   device: all
-  requires_de: true
+  environment: desktop

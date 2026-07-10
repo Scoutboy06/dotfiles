@@ -3,7 +3,7 @@
 #
 # Install packages from packages-*.yaml
 # This script:
-#   1. Filters packages by device + requires_de (template time)
+#   1. Filters packages by device + environment (template time)
 #   2. Detects available package managers (runtime)
 #   3. Installs packages per manager (runtime)
 #
@@ -39,7 +39,7 @@ exit 0
 {{ end }}
 
 # --- Template-time: pre-filter package lists per manager ---
-# Filtered by device + requires_de at template render time.
+# Filtered by device + environment at template render time.
 # Runtime checks handle already-installed detection.
 
 {{ $device := .device }}
@@ -59,32 +59,32 @@ install_packages_main() {
 
     # --- Generate filtered package arrays from templates ---
 {{ range $pkg := $pacmanPkgs }}
-{{ if or (eq $pkg.device "all") (eq $pkg.device $device) }}
-{{ if or (not $pkg.requires_de) $hasDE }}
+{{ if or (eq $pkg.device "all") (has $device (splitList "," $pkg.device)) }}
+{{ if or (has "dev" (splitList "," $pkg.environment)) $hasDE }}
     pacman_packages+=("{{ $pkg.name }}")
 {{ end }}
 {{ end }}
 {{ end }}
 
 {{ range $pkg := $aurPkgs }}
-{{ if or (eq $pkg.device "all") (eq $pkg.device $device) }}
-{{ if or (not $pkg.requires_de) $hasDE }}
+{{ if or (eq $pkg.device "all") (has $device (splitList "," $pkg.device)) }}
+{{ if or (has "dev" (splitList "," $pkg.environment)) $hasDE }}
     aur_packages+=("{{ $pkg.name }}")
 {{ end }}
 {{ end }}
 {{ end }}
 
 {{ range $pkg := $aptPkgs }}
-{{ if or (eq $pkg.device "all") (eq $pkg.device $device) }}
-{{ if or (not $pkg.requires_de) $hasDE }}
+{{ if or (eq $pkg.device "all") (has $device (splitList "," $pkg.device)) }}
+{{ if or (has "dev" (splitList "," $pkg.environment)) $hasDE }}
     apt_packages+=("{{ $pkg.name }}")
 {{ end }}
 {{ end }}
 {{ end }}
 
 {{ range $pkg := $bunPkgs }}
-{{ if or (eq $pkg.device "all") (eq $pkg.device $device) }}
-{{ if or (not $pkg.requires_de) $hasDE }}
+{{ if or (eq $pkg.device "all") (has $device (splitList "," $pkg.device)) }}
+{{ if or (has "dev" (splitList "," $pkg.environment)) $hasDE }}
     bun_packages+=("{{ $pkg.name }}")
     bun_packages_ignore_scripts+=({{ if $pkg.ignore_scripts }}true{{ else }}false{{ end }})
 {{ end }}
