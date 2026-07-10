@@ -67,6 +67,10 @@ if [ -d "$FNM_PATH" ]; then
   eval "`fnm env --use-on-cd`"
 fi
 
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
 # opencode
 export PATH=/home/elias/.opencode/bin:$PATH
 
