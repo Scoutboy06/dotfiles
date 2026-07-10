@@ -16,3 +16,13 @@ reference files and run commands without needing to be cd'd into the repo.
 
 When referencing files or running commands that need the dotfiles root, use the
 path above.
+
+## Chezmoi Rules
+
+- NEVER use `chezmoi apply --force`. It blindly overwrites local changes.
+- Before applying, always run `chezmoi diff` to preview what will change.
+- If `chezmoi apply` fails with TTY issues ("could not open a new TTY"),
+  investigate the conflict instead of forcing. The failure means a managed
+  file has local modifications that would be lost.
+- Prefer editing the source template in the dotfiles repo, then running plain
+  `chezmoi apply` (without flags).
