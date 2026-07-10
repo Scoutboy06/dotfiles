@@ -56,6 +56,12 @@
   {
     "context": "Workspace",
     "bindings": {
+      "ctrl-t": null
+    }
+  },
+  {
+    "context": "Workspace",
+    "bindings": {
       "ctrl-:": "workspace::NewTerminal"
     }
   },
