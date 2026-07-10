@@ -22,3 +22,7 @@ Combine all found `CODE.md` files into a single instruction block.
 If there are conflicting instructions, those that came from a file deeper in the structure take precedence.
 
 You are NOT allowed to modify `CODE.md` files unless EXPLICITY instructed to do so.
+
+## Git
+
+- **NEVER** add yourself as a co-author to any commit.
