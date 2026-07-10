@@ -18,12 +18,9 @@ Key reference files:
 
 ## Configuration
 
-Dotfiles-managed config lives at `/home/elias/p/dotfiles/dot_config/zed/`:
-
-| Source file | Live target |
-|---|---|
-| `dot_config/zed/keymap.json` | `~/.config/zed/keymap.json` |
-| `dot_config/zed/private_settings.json` | `~/.config/zed/settings.json` |
+Zed configuration files:
+- `~/.config/zed/settings.json`
+- `~/.config/zed/keymap.json`
 
 The user uses `base_keymap: "VSCode"` and `vim_mode: true`.
 
@@ -43,3 +40,16 @@ The user uses `base_keymap: "VSCode"` and `vim_mode: true`.
   }
   ```
 - Never use `unbind` (that's an old pre-0.197 format). Use `null` in `bindings`.
+
+{{- if .isWSL }}
+
+## WSL Note
+
+Zed is installed natively on **Windows**, not in WSL. The config at
+`~/.config/zed/` in WSL is **not** used by the running editor.
+
+Edit the Windows configuration directly (accessible from WSL via `/mnt/c/`):
+- Settings: `/mnt/c/Users/<username>/AppData/Roaming/Zed/settings.json`
+- Keymap:   `/mnt/c/Users/<username>/AppData/Roaming/Zed/keymap.json`
+
+{{- end }}

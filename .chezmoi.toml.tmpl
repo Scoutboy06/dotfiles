@@ -9,6 +9,8 @@
 {{-   $device = "eliaspc" }}
 {{- else if $isLaptop }}
 {{-   $device = "eliaslt" }}
+{{- else if $isWorkLaptop }}
+{{-   $device = "worklt" }}
 {{- end }}
 
 {{- $isWSL := (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
@@ -26,6 +28,7 @@ sourceDir = "/home/elias/p/dotfiles"
   isLaptop = {{ $isLaptop }}
   isWorkLaptop = {{ $isWorkLaptop }}
   isOmarchy = {{ $isOmarchy }}
+  isWSL = {{ $isWSL }}
   hasDE = {{ $hasDE }}
 {{- if $isDesktop }}
   monitorScale = 1.0
