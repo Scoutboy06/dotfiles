@@ -110,7 +110,12 @@ alias g='git'
 alias v='nvim'
 alias vim='nvim'
 alias svim='sudo -E nvim'
-alias zed='zeditor'
+# Make zed and zeditor interchangeable regardless of which binary is installed
+if command -v zeditor &>/dev/null; then
+  alias zed='zeditor'
+elif command -v zed &>/dev/null; then
+  alias zeditor='zed'
+fi
 alias copy='wl-copy'
 alias paste='wl-paste'
 alias cc='claude'
