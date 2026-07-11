@@ -1,0 +1,10 @@
+# ~/.zshenv - loaded first, before system zshrc and ~/.zshrc
+
+# Skip redundant compinit in /etc/zsh/zshrc (saves ~96ms).
+# Your ~/.zshrc already runs compinit -C properly.
+skip_global_compinit=1
+
+# Strip Windows/WSL paths from PATH (saves ~40ms per failed command lookup).
+# These /mnt/c/... entries come from WSL interop and hit the slow 9p filesystem.
+path=(${path:#/mnt/*})
+typeset -U path
