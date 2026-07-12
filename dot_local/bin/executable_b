@@ -1,0 +1,297 @@
+#!/usr/bin/env python3
+"""Run a command with bw:// references in .env resolved by Bitwarden."""
+
+import base64
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+class BitwardenError(Exception):
+    """A Bitwarden reference could not be resolved."""
+
+
+def fail(message: str) -> None:
+    print(f'b: {message}', file=sys.stderr)
+    raise SystemExit(1)
+
+
+def run_bw(*args: str) -> str:
+    result = subprocess.run(['bw', *args], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise BitwardenError(result.stderr.strip() or f'Bitwarden command failed: bw {" ".join(args)}')
+    return result.stdout
+
+
+def load_json(output: str, context: str) -> object:
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError as error:
+        raise BitwardenError(f'Bitwarden returned invalid JSON while {context}') from error
+
+
+def exactly_one(matches: list[object], description: str) -> dict[str, object]:
+    if len(matches) != 1 or not isinstance(matches[0], dict):
+        raise BitwardenError(f'expected exactly one {description}')
+    return matches[0]
+
+
+class LookupCache:
+    def __init__(self) -> None:
+        path = os.environ.get('BW_LOOKUP_CACHE')
+        self.path = Path(path) if path else None
+        value_path = os.environ.get('BW_VALUE_CACHE')
+        self.value_path = Path(value_path) if value_path else None
+        self.folders: dict[str, str] = {}
+        self.items: dict[tuple[str, str], str] = {}
+        self.values: dict[str, str] = {}
+        if self.path:
+            self.load()
+        if self.value_path:
+            self.load_values()
+
+    def load(self) -> None:
+        try:
+            lines = self.path.read_text().splitlines()
+        except FileNotFoundError:
+            return
+        except OSError:
+            return
+        for line in lines:
+            parts = line.split('\t')
+            if len(parts) == 3 and parts[0] == 'folder':
+                self.folders[parts[1]] = parts[2]
+            elif len(parts) == 4 and parts[0] == 'item':
+                self.items[(parts[1], parts[2])] = parts[3]
+
+    def load_values(self) -> None:
+        try:
+            lines = self.value_path.read_text().splitlines()
+        except (FileNotFoundError, OSError):
+            return
+        for line in lines:
+            try:
+                reference, encoded_value = line.split('\t', 1)
+                self.values[reference] = base64.b64decode(encoded_value).decode()
+            except (ValueError, UnicodeDecodeError):
+                continue
+
+    def save_values(self) -> None:
+        if not self.value_path:
+            return
+        try:
+            self.value_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode='w', dir=self.value_path.parent, prefix=f'.{self.value_path.name}.', delete=False
+            ) as file:
+                os.chmod(file.name, 0o600)
+                for reference, value in sorted(self.values.items()):
+                    encoded_value = base64.b64encode(value.encode()).decode()
+                    file.write(f'{reference}\t{encoded_value}\n')
+                temporary_path = Path(file.name)
+            temporary_path.replace(self.value_path)
+            os.chmod(self.value_path, 0o600)
+        except OSError:
+            return
+
+    @staticmethod
+    def cacheable(*values: str) -> bool:
+        return all('\t' not in value and '\n' not in value and '\r' not in value for value in values)
+
+    def save(self) -> None:
+        if not self.path:
+            return
+        try:
+            self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            lines = [f'folder\t{name}\t{identifier}' for name, identifier in self.folders.items()]
+            lines.extend(
+                f'item\t{folder}\t{name}\t{identifier}'
+                for (folder, name), identifier in self.items.items()
+            )
+            with tempfile.NamedTemporaryFile(
+                mode='w', dir=self.path.parent, prefix=f'.{self.path.name}.', delete=False
+            ) as file:
+                os.chmod(file.name, 0o600)
+                file.write('\n'.join(lines) + ('\n' if lines else ''))
+                temporary_path = Path(file.name)
+            temporary_path.replace(self.path)
+            os.chmod(self.path, 0o600)
+        except OSError:
+            return
+
+    def remove_item(self, folder: str, item: str) -> None:
+        self.items.pop((folder, item), None)
+        self.save()
+
+
+def resolve_folder_id(folder_name: str, cache: LookupCache) -> str:
+    cached = cache.folders.get(folder_name)
+    if cached:
+        return cached
+    folders = load_json(run_bw('list', 'folders', '--search', folder_name), 'listing folders')
+    if not isinstance(folders, list):
+        raise BitwardenError('Bitwarden returned an invalid folder list')
+    folder = exactly_one(
+        [entry for entry in folders if isinstance(entry, dict) and entry.get('name') == folder_name],
+        f"Bitwarden folder named '{folder_name}'",
+    )
+    identifier = folder.get('id')
+    if not isinstance(identifier, str):
+        raise BitwardenError(f"Bitwarden folder '{folder_name}' has no ID")
+    if cache.cacheable(folder_name, identifier):
+        cache.folders[folder_name] = identifier
+        cache.save()
+    return identifier
+
+
+def parse_reference(reference: str) -> tuple[str, str, str]:
+    parts = reference.removeprefix('bw://').split('/')
+    if len(parts) != 3 or not all(parts):
+        raise BitwardenError(
+            f'invalid Bitwarden reference: {reference} '
+            '(expected bw://<folder>/<item>/<field>)'
+        )
+    return parts[0], parts[1], parts[2]
+
+
+def field_value(item: dict[str, object], item_name: str, field_name: str) -> str:
+    if field_name in {'username', 'password'}:
+        login = item.get('login')
+        value = login.get(field_name) if isinstance(login, dict) else None
+    elif field_name == 'notes':
+        value = item.get('notes')
+    else:
+        fields = item.get('fields', [])
+        matches = [
+            entry.get('value')
+            for entry in fields
+            if isinstance(entry, dict) and entry.get('name') == field_name
+        ]
+        value = matches[0] if len(matches) == 1 else None
+    if not isinstance(value, str) or not value:
+        raise BitwardenError(
+            f"Bitwarden item '{item_name}' has no uniquely matching '{field_name}' field"
+        )
+    return value
+
+
+def resolve_references(references: set[str], cache: LookupCache) -> dict[str, str]:
+    resolved = {
+        reference: cache.values[reference]
+        for reference in references
+        if reference in cache.values
+    }
+    parsed = {
+        reference: parse_reference(reference)
+        for reference in references
+        if reference not in resolved
+    }
+    requested_items: dict[str, set[str]] = {}
+    for folder_name, item_name, _ in parsed.values():
+        requested_items.setdefault(folder_name, set()).add(item_name)
+
+    items_by_folder: dict[str, dict[str, dict[str, object]]] = {}
+    for folder_name, item_names in requested_items.items():
+        folder_id = resolve_folder_id(folder_name, cache)
+        items = load_json(
+            run_bw('list', 'items', '--folderid', folder_id),
+            f"listing items in folder '{folder_name}'",
+        )
+        if not isinstance(items, list):
+            raise BitwardenError('Bitwarden returned an invalid item list')
+        matching_items: dict[str, dict[str, object]] = {}
+        for item_name in item_names:
+            item = exactly_one(
+                [entry for entry in items if isinstance(entry, dict) and entry.get('name') == item_name],
+                f"Bitwarden item named '{item_name}' in folder '{folder_name}'",
+            )
+            identifier = item.get('id')
+            if isinstance(identifier, str) and cache.cacheable(folder_name, item_name, identifier):
+                cache.items[(folder_name, item_name)] = identifier
+            matching_items[item_name] = item
+        items_by_folder[folder_name] = matching_items
+    cache.save()
+
+    newly_resolved = {
+        reference: field_value(items_by_folder[folder_name][item_name], item_name, field_name)
+        for reference, (folder_name, item_name, field_name) in parsed.items()
+    }
+    cache.values.update(newly_resolved)
+    cache.save_values()
+    resolved.update(newly_resolved)
+    return resolved
+
+
+def show_cache() -> None:
+    cache = LookupCache()
+    if cache.path is None or not cache.path.is_file() or (not cache.folders and not cache.items):
+        print('b: lookup cache is empty')
+        return
+    for name, identifier in sorted(cache.folders.items()):
+        print(f'folder\t{name}\t{identifier}')
+    for (folder, name), identifier in sorted(cache.items.items()):
+        print(f'item\t{folder}\t{name}\t{identifier}')
+
+
+def parse_env(path: Path, dry_run: bool, cache: LookupCache) -> dict[str, str]:
+    assignments: list[tuple[str, str]] = []
+    references: set[str] = set()
+    for line in path.read_text().splitlines():
+        if not line or line.startswith('#'):
+            continue
+        if '=' not in line:
+            raise BitwardenError(f'invalid .env line: {line}')
+        key, value = line.split('=', 1)
+        if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', key) is None:
+            raise BitwardenError(f'invalid environment variable name: {key}')
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'\"', "'"}:
+            value = value[1:-1]
+        assignments.append((key, value))
+        if value.startswith('bw://'):
+            references.add(value)
+
+    resolved = (
+        {reference: '<resolved-from-bw>' for reference in references}
+        if dry_run
+        else resolve_references(references, cache)
+    )
+    return {key: resolved.get(value, value) for key, value in assignments}
+
+
+def main() -> None:
+    arguments = sys.argv[1:]
+    if arguments and arguments[0] == '--show-cache':
+        if len(arguments) != 1:
+            fail('usage: b --show-cache')
+        show_cache()
+        return
+    if shutil.which('bw') is None:
+        fail('bw (Bitwarden CLI) not found')
+    env_file = Path('.env')
+    if not env_file.is_file():
+        fail(f'.env not found in {Path.cwd()}')
+    dry_run = bool(arguments and arguments[0] in {'--dry-run', '--test'})
+    if dry_run:
+        arguments.pop(0)
+    if not arguments:
+        fail('usage: b [--dry-run|--test] <command> [args...]')
+    try:
+        if not dry_run and not os.environ.get('BW_SESSION'):
+            raise BitwardenError('Bitwarden is locked; run bw unlock')
+        environment = os.environ | parse_env(env_file, dry_run, LookupCache())
+    except BitwardenError as error:
+        fail(str(error))
+    try:
+        result = subprocess.run(arguments, env=environment, check=False)
+    except FileNotFoundError:
+        fail(f'command not found: {arguments[0]}')
+    raise SystemExit(result.returncode)
+
+
+if __name__ == '__main__':
+    main()

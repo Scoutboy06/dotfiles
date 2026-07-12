@@ -155,47 +155,51 @@ o() {
   op run --env-file=.env -- "$@"
 }
 
-b() {
-  if [[ ! -f .env ]]; then
-    echo "❌ .env not found in $(pwd)"
-    return 1
-  fi
+BW_CACHE_DIR="/dev/shm/bw-${UID}"
+BW_SESSION_CACHE="$BW_CACHE_DIR/session"
+export BW_LOOKUP_CACHE="$BW_CACHE_DIR/lookup-ids"
+export BW_VALUE_CACHE="$BW_CACHE_DIR/resolved-values"
+if [[ ! -d "$BW_CACHE_DIR" ]]; then
+  mkdir -m 700 -p "$BW_CACHE_DIR"
+fi
+chmod 700 "$BW_CACHE_DIR"
+if [[ -r "$BW_SESSION_CACHE" ]]; then
+  export BW_SESSION="$(<"$BW_SESSION_CACHE")"
+fi
 
-  local dry_run=false
-  [[ "$1" == "--dry-run" || "$1" == "--test" ]] && dry_run=true && shift
-
-  if ! $dry_run; then
-    if ! command -v bw &>/dev/null; then
-      echo "❌ bw (Bitwarden CLI) not found"
-      return 1
-    fi
-    if [[ -z "${BW_SESSION:-}" ]]; then
-      BW_SESSION=$(bw unlock --raw 2>/dev/null) || return 1
-      export BW_SESSION
-    fi
-  fi
-
-  (
-    while IFS='=' read -r key value; do
-      [[ -n "$key" && "$key" != '#'* ]] || continue
-      if [[ "$value" == bw://* ]]; then
-        if $dry_run; then
-          value="<resolved-from-bw>"
-        else
-          local ref="${value#bw://}"
-          local item="${ref%%/*}"
-          local field="${ref#*/}"
-          [[ "$field" == "$item" ]] && field="password"
-          value=$(bw get "$field" "$item" 2>/dev/null) || {
-            echo "⚠️  Failed to fetch $value" >&2
-            continue
-          }
-        fi
+bw() {
+  case "$1" in
+    unlock)
+      local session
+      session=$(command bw unlock --raw "${@:2}") || return 1
+      (umask 077; print -rn -- "$session" >| "$BW_SESSION_CACHE")
+      chmod 600 "$BW_SESSION_CACHE"
+      rm -f -- "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
+      export BW_SESSION="$session"
+      echo 'Bitwarden vault unlocked for this WSL session.'
+      ;;
+    cache)
+      if [[ "$2" == reset && $# -eq 2 ]]; then
+        rm -f -- "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
+        echo 'Bitwarden caches reset.'
+      else
+        echo 'Usage: bw cache reset' >&2
+        return 1
       fi
-      export "$key=$value"
-    done < .env
-    "$@"
-  )
+      ;;
+    lock|logout)
+      rm -f -- "$BW_SESSION_CACHE" "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
+      unset BW_SESSION
+      command bw "$@"
+      ;;
+    sync)
+      rm -f -- "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
+      command bw "$@"
+      ;;
+    *)
+      command bw "$@"
+      ;;
+  esac
 }
 
 inspect() {
