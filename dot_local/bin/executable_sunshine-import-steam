@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_dir="$HOME/.config/sunshine"
+config="$config_dir/apps.json"
+steam_apps="$HOME/.local/bin/steam-apps"
+sunshine_apps="$HOME/.local/bin/sunshine-apps"
+
+mkdir -p "$config_dir"
+steam_json=$(mktemp)
+merged_json=$(mktemp "$config_dir/apps.json.tmp.XXXXXX")
+trap 'rm -f "$steam_json" "$merged_json"' EXIT
+
+notify_failure() {
+  notify-send --app-name="Sunshine" --urgency=critical \
+    "Steam game import failed" "$1"
+}
+
+if ! "$steam_apps" >"$steam_json"; then
+  notify_failure "Could not read the Steam library."
+  exit 1
+fi
+
+if ! "$sunshine_apps" --input "$steam_json" --config "$config" --output "$merged_json"; then
+  notify_failure "Could not update the Sunshine application list."
+  exit 1
+fi
+
+added=$(python3 - "$config" "$merged_json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+old_path, new_path = map(Path, sys.argv[1:])
+old_count = 0
+if old_path.exists() and old_path.stat().st_size:
+    try:
+        old_count = len(json.loads(old_path.read_text()).get("apps", []))
+    except json.JSONDecodeError:
+        pass
+new_count = len(json.loads(new_path.read_text()).get("apps", []))
+print(max(0, new_count - old_count))
+PY
+)
+
+mv -f "$merged_json" "$config"
+
+if (( added == 0 )); then
+  notify-send --app-name="Sunshine" "Steam game import complete" \
+    "No new games were found."
+else
+  notify-send --app-name="Sunshine" "Steam game import complete" \
+    "$added new game(s) added."
+fi

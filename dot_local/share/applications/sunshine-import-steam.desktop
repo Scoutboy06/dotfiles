@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Import Steam Games into Sunshine
+Comment=Add missing Steam games to the Sunshine library
+Exec=sunshine-import-steam
+Icon=steam
+Terminal=false
+Categories=Game;
+Keywords=steam;sunshine;games;import;
