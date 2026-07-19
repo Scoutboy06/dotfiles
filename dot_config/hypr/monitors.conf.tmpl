@@ -10,8 +10,22 @@
 # Alignment: left monitor's bottom-right touching right monitor's bottom-left
 
 env = GDK_SCALE,1.25
-monitor = HDMI-A-1, preferred, 0x0, 1
+monitor = HDMI-A-1, 1920x1080@74.97, 0x0, 1
 monitor = DP-1, 2560x1440@179.88, 1920x0, 1.25
+
+# Keep odd-numbered workspaces on the main display and even-numbered
+# workspaces on the secondary display.
+workspace = 1, monitor:DP-1
+workspace = 2, monitor:HDMI-A-1
+workspace = 3, monitor:DP-1
+workspace = 4, monitor:HDMI-A-1
+workspace = 5, monitor:DP-1
+workspace = 6, monitor:HDMI-A-1
+workspace = 7, monitor:DP-1
+workspace = 8, monitor:HDMI-A-1
+workspace = 9, monitor:DP-1
+workspace = 10, monitor:HDMI-A-1
+
 # Additional monitors (add as needed)
 
 {{- else if .isLaptop }}
