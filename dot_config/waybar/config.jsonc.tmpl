@@ -51,8 +51,12 @@
     },
     "show-special": true,
     "persistent-workspaces": {
-      "DP-1": [1, 3, 5, 7, 9],
-      "HDMI-A-1": [2, 4, 6, 8, 10]
+{{- if .isDesktop }}
+      "DP-1": [1, 3, 5],
+      "HDMI-A-1": [2, 4, 6]
+{{- else }}
+      "*": [1, 2, 3, 4, 5]
+{{- end }}
     }
   },
   "custom/launcher": {
