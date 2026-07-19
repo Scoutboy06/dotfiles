@@ -68,6 +68,14 @@ windowrule {
   match:class = ^(Spotify)$
 }
 
+# Steam Big Picture Mode — override default float/size with fullscreen
+windowrule {
+  name = steam-big-picture
+  fullscreen = 1
+  match:class = ^(steam)$
+  match:title = ^Steam Big Picture Mode$
+}
+
 # Vim-style focus movement
 unbind = SUPER, H
 unbind = SUPER, J
