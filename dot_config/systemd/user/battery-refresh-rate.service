@@ -1,0 +1,13 @@
+[Unit]
+Description=Use 40 Hz in power-saver mode and 60 Hz otherwise
+After=wayland-wm@hyprland.desktop.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/battery-refresh-rate
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -uo pipefail
+
+apply_refresh_rate() {
+  # The internal panel advertises 39.99 Hz and 60.01 Hz. Keep external
+  # displays untouched and preserve the laptop panel's configured scale.
+  if [[ "$(powerprofilesctl get 2>/dev/null)" == "power-saver" ]]; then
+    target="1920x1080@39.99"
+  else
+    target="1920x1080@60.01"
+  fi
+
+  current=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.name == "eDP-1") | .refreshRate' || true)
+  [[ -n "$current" ]] || return 0
+
+  if [[ "$target" == *60.01 && "$current" == 60.01* ]] ||
+     [[ "$target" == *39.99 && "$current" == 39.99* ]]; then
+    return 0
+  fi
+
+  hyprctl keyword monitor "eDP-1,${target},auto,1.25"
+}
+
+apply_refresh_rate
+
+# React to power-profile changes over D-Bus. This is event-driven, so the
+# service does not poll or wake the CPU periodically.
+stdbuf -oL gdbus monitor --system \
+  --dest net.hadess.PowerProfiles \
+  --object-path /net/hadess/PowerProfiles | while IFS= read -r event; do
+  if [[ "$event" == *PropertiesChanged* ]]; then
+    apply_refresh_rate
+  fi
+done

@@ -1,0 +1,51 @@
+{{ if eq .device "eliaslt" -}}
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  printf '\033[31m[error]\033[0m Run this script as your normal user; it invokes sudo when needed.\n' >&2
+  exit 1
+fi
+
+log_info() { printf '\033[34m[info]\033[0m %s\n' "$*"; }
+log_success() { printf '\033[32m[success]\033[0m %s\n' "$*"; }
+
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+
+cat > "$workdir/nvidia-power-management.conf" <<'EOF'
+# Fine-grained Runtime D3 power management for the laptop's NVIDIA dGPU.
+# The GPU remains available for PRIME/CUDA and powers down when idle.
+options nvidia NVreg_DynamicPowerManagement=0x02
+EOF
+
+cat > "$workdir/80-nvidia-runtime-pm.rules" <<'EOF'
+# Permit runtime suspend of NVIDIA display/3D PCI devices.
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030200", TEST=="power/control", ATTR{power/control}="auto"
+EOF
+
+changed=false
+
+if ! cmp -s "$workdir/nvidia-power-management.conf" /etc/modprobe.d/nvidia-power-management.conf 2>/dev/null; then
+  log_info "Installing NVIDIA Runtime D3 module configuration"
+  sudo install -m 0644 "$workdir/nvidia-power-management.conf" /etc/modprobe.d/nvidia-power-management.conf
+  changed=true
+fi
+
+if ! cmp -s "$workdir/80-nvidia-runtime-pm.rules" /etc/udev/rules.d/80-nvidia-runtime-pm.rules 2>/dev/null; then
+  log_info "Installing NVIDIA runtime power-management udev rules"
+  sudo install -m 0644 "$workdir/80-nvidia-runtime-pm.rules" /etc/udev/rules.d/80-nvidia-runtime-pm.rules
+  changed=true
+fi
+
+if [[ "$changed" == true ]]; then
+  log_info "Reloading udev rules and rebuilding the Limine initramfs"
+  sudo udevadm control --reload
+  sudo limine-mkinitcpio
+  log_success "NVIDIA runtime power management installed; reboot to activate it"
+else
+  log_success "NVIDIA runtime power management is already configured"
+fi
+{{- end }}
