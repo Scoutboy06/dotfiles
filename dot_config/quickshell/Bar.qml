@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
@@ -19,6 +20,8 @@ PanelWindow {
     required property var popupState
     property bool exiting: false
     property bool shown: false
+    readonly property var hyprlandMonitor: Hyprland.monitorFor(screen)
+    readonly property bool fullscreen: hyprlandMonitor?.activeWorkspace?.hasFullscreen ?? false
     readonly property bool popoutOpen: popupState.activeScreen === screen && popupState.activePanel !== ""
 
     function dismissPopups() {
@@ -52,20 +55,28 @@ PanelWindow {
 
     anchors { top: true; left: true; right: true }
     implicitHeight: 36
-    exclusiveZone: 36
+    exclusiveZone: fullscreen ? 0 : 36
     WlrLayershell.layer: WlrLayer.Overlay
     color: "transparent"
 
+    mask: Region {
+        x: 0
+        y: 0
+        width: root.fullscreen ? 0 : root.width
+        height: root.fullscreen ? 0 : root.height
+    }
+
+    onFullscreenChanged: if (fullscreen) dismissPopups()
     Component.onCompleted: reveal.start()
     Timer { id: reveal; interval: 1; onTriggered: root.shown = true }
 
     Item {
         id: panel
         x: 8
-        y: root.shown && !root.exiting ? 4 : -height - 4
+        y: root.shown && !root.exiting && !root.fullscreen ? 4 : -height - 4
         width: parent.width - 16
         height: 32
-        opacity: root.shown && !root.exiting ? 1 : 0
+        opacity: root.shown && !root.exiting && !root.fullscreen ? 1 : 0
 
         Rectangle {
             anchors.left: parent.left
