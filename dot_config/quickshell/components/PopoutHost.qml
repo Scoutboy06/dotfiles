@@ -18,7 +18,7 @@ PanelWindow {
     signal dismissRequested
 
     readonly property bool open: activePanel !== ""
-    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : networkPanel
+    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : displayedPanel === "network" ? networkPanel : calendarPanel
 
     visible: rendered
     anchors { top: true; bottom: true; left: true; right: true }
@@ -120,6 +120,19 @@ PanelWindow {
             y: root.open && root.displayedPanel === "network" ? 0 : -6
             enabled: root.open && root.displayedPanel === "network"
             onCloseRequested: root.dismissRequested()
+
+            Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
+            Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
+        }
+
+        CalendarPopout {
+            id: calendarPanel
+            anchors.fill: parent
+            theme: root.theme
+            motion: root.motion
+            opacity: root.open && root.displayedPanel === "calendar" ? 1 : 0
+            y: root.open && root.displayedPanel === "calendar" ? 0 : -6
+            enabled: root.open && root.displayedPanel === "calendar"
 
             Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
             Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }

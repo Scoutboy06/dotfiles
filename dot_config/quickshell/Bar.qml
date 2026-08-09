@@ -90,16 +90,14 @@ PanelWindow {
                 hoverEnabled: !root.popoutOpen
             }
 
-            SystemClock { id: clock; precision: SystemClock.Minutes }
-
-            Text {
+            ClockButton {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Qt.formatDateTime(clock.date, "ddd d MMM  HH:mm")
-                color: root.theme.foreground
-                font.family: root.theme.fontFamily
-                font.pixelSize: 13
-                font.bold: true
-                Behavior on color { ColorAnimation { duration: root.motion.normal } }
+                theme: root.theme
+                motion: root.motion
+                highlighted: root.popupState.activeScreen === root.screen && root.popupState.activePanel === "calendar"
+                hoverEnabled: !root.popoutOpen
+                onClicked: anchor => root.togglePanel("calendar", anchor)
+                onHovered: anchor => root.hoverPanel("calendar", anchor)
             }
         }
 
