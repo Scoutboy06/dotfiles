@@ -23,18 +23,6 @@ Item {
         anchors.centerIn: parent
         spacing: 2
 
-        ActionButton {
-            theme: root.theme
-            motion: root.motion
-            text: "󰒮"
-            hoverEnabled: root.hoverEnabled
-            visible: root.player?.canGoPrevious ?? false
-            onClicked: {
-                root.transportClicked();
-                root.player.previous();
-            }
-        }
-
         Rectangle {
             id: mediaTrigger
             anchors.verticalCenter: parent.verticalCenter
@@ -57,6 +45,18 @@ Item {
             HoverHandler { id: titleHover }
             TapHandler { onTapped: root.clicked(root) }
             Behavior on color { ColorAnimation { duration: root.motion.fast } }
+        }
+
+        ActionButton {
+            theme: root.theme
+            motion: root.motion
+            text: "󰒮"
+            hoverEnabled: root.hoverEnabled
+            visible: root.player?.canGoPrevious ?? false
+            onClicked: {
+                root.transportClicked();
+                root.player.previous();
+            }
         }
 
         ActionButton {
