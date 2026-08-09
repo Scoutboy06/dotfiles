@@ -12,6 +12,14 @@ Row {
 
     readonly property var monitor: Hyprland.monitorFor(screen)
     readonly property string activeSpecial: monitor?.lastIpcObject.specialWorkspace?.name ?? ""
+    readonly property var numericWorkspaceIds: {
+        const ids = [1, 2, 3, 4, 5];
+        Hyprland.workspaces.values.forEach(workspace => {
+            if (workspace.id > 0 && !ids.includes(workspace.id))
+                ids.push(workspace.id);
+        });
+        return ids.sort((left, right) => left - right);
+    }
     readonly property var specialWorkspaces: Hyprland.workspaces.values.filter(workspace =>
         workspace.name.startsWith("special:")
             && (workspace.toplevels.values.length > 0 || Hyprland.monitors.values.some(candidate =>
@@ -21,14 +29,15 @@ Row {
     spacing: 4
 
     Repeater {
-        model: [1, 2, 3, 4, 5]
+        model: root.numericWorkspaceIds
 
         delegate: WorkspacePill {
             required property int modelData
             readonly property var workspace: Hyprland.workspaces.values.find(candidate => candidate.id === modelData)
 
             label: modelData.toString()
-            active: (workspace?.active ?? false) && workspace.monitor === root.monitor
+            active: workspace === Hyprland.focusedWorkspace
+            occupied: (workspace?.toplevels.values.length ?? 0) > 0
             theme: root.theme
             motion: root.motion
             hoverEnabled: root.hoverEnabled
@@ -51,6 +60,7 @@ Row {
 
             label: specialName.slice(0, 1).toLowerCase()
             active: modelData.name === root.activeSpecial
+            occupied: modelData.toplevels.values.length > 0
             theme: root.theme
             motion: root.motion
             hoverEnabled: root.hoverEnabled

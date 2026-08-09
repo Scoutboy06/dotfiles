@@ -5,6 +5,7 @@ Rectangle {
 
     required property string label
     required property bool active
+    property bool occupied: false
     required property var theme
     required property var motion
     property bool hoverEnabled: true
@@ -24,12 +25,17 @@ Rectangle {
         anchors.centerIn: parent
         text: root.label
         color: root.active ? root.theme.background : root.theme.foreground
+        opacity: root.active || root.occupied ? 1 : 0.55
         font.family: root.theme.fontFamily
         font.pixelSize: 12
         font.bold: root.active
 
         Behavior on color {
             ColorAnimation { duration: root.motion.fast }
+        }
+
+        Behavior on opacity {
+            NumberAnimation { duration: root.motion.fast }
         }
     }
 
