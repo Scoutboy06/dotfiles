@@ -10,6 +10,7 @@ PanelWindow {
     required property var theme
     required property var motion
     required property var audio
+    required property var bluetooth
     required property var popupState
     property bool exiting: false
     property bool shown: false
@@ -87,7 +88,15 @@ PanelWindow {
                 theme: root.theme
                 motion: root.motion
                 audio: root.audio
-                onAudioClicked: root.popupState.audioScreen = root.popupState.audioScreen === root.screen ? null : root.screen
+                bluetooth: root.bluetooth
+                onAudioClicked: {
+                    root.popupState.bluetoothScreen = null;
+                    root.popupState.audioScreen = root.popupState.audioScreen === root.screen ? null : root.screen;
+                }
+                onBluetoothClicked: {
+                    root.popupState.audioScreen = null;
+                    root.popupState.bluetoothScreen = root.popupState.bluetoothScreen === root.screen ? null : root.screen;
+                }
             }
         }
 
@@ -107,5 +116,14 @@ PanelWindow {
         audio: root.audio
         open: root.popupState.audioScreen === root.screen
         onDismissRequested: root.popupState.audioScreen = null
+    }
+
+    BluetoothPopout {
+        screen: root.screen
+        theme: root.theme
+        motion: root.motion
+        bluetooth: root.bluetooth
+        open: root.popupState.bluetoothScreen === root.screen
+        onDismissRequested: root.popupState.bluetoothScreen = null
     }
 }

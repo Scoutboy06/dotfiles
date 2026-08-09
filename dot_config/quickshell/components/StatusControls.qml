@@ -7,11 +7,12 @@ Row {
     required property var theme
     required property var motion
     required property var audio
+    required property var bluetooth
     signal audioClicked
+    signal bluetoothClicked
 
     property bool wifiConnected: false
     property bool ethernetConnected: false
-    property bool bluetoothOn: false
     spacing: 2
 
     function run(command) { Quickshell.execDetached(["sh", "-lc", command]); }
@@ -19,13 +20,12 @@ Row {
 
     Process {
         id: state
-        command: ["sh", "-lc", "iface=$(ip route show default 2>/dev/null | awk 'NR == 1 {print $5}'); printf '%s|%s|%s' \"$([ -n \"$iface\" ] && echo connected || echo disconnected)\" \"$([ -n \"$iface\" ] && [ ! -d \"/sys/class/net/$iface/wireless\" ] && echo yes || echo no)\" \"$(bluetoothctl show 2>/dev/null | awk '/Powered:/ {print $2}')\""]
+        command: ["sh", "-lc", "iface=$(ip route show default 2>/dev/null | awk 'NR == 1 {print $5}'); printf '%s|%s' \"$([ -n \"$iface\" ] && echo connected || echo disconnected)\" \"$([ -n \"$iface\" ] && [ ! -d \"/sys/class/net/$iface/wireless\" ] && echo yes || echo no)\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 const parts = text.trim().split("|");
                 root.wifiConnected = parts[0] === "connected";
                 root.ethernetConnected = parts[1] === "yes";
-                root.bluetoothOn = parts[2] === "yes";
             }
         }
     }
@@ -40,9 +40,9 @@ Row {
     }
     ActionButton {
         theme: root.theme; motion: root.motion
-        text: root.bluetoothOn ? "󰂯" : "󰂲"
-        textColor: root.bluetoothOn ? root.theme.accent : root.theme.foreground
-        onClicked: root.run("omarchy launch bluetooth")
+        text: root.bluetooth.enabled ? "󰂯" : "󰂲"
+        textColor: root.bluetooth.enabled ? root.theme.accent : root.theme.foreground
+        onClicked: root.bluetoothClicked()
     }
     ActionButton {
         theme: root.theme; motion: root.motion
