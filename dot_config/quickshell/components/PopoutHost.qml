@@ -11,7 +11,9 @@ PanelWindow {
     required property var bluetooth
     property string activePanel: ""
     property string displayedPanel: "audio"
+    property real requestedCenter: width / 2
     property bool rendered: false
+    property bool positionAnimationEnabled: false
     signal dismissRequested
 
     readonly property bool open: activePanel !== ""
@@ -37,8 +39,11 @@ PanelWindow {
     onOpenChanged: {
         if (open) {
             closeTimer.stop();
+            positionAnimationEnabled = false;
             rendered = true;
+            positionAnimationTimer.restart();
         } else if (rendered) {
+            positionAnimationEnabled = false;
             closeTimer.restart();
         }
     }
@@ -56,7 +61,8 @@ PanelWindow {
 
     Rectangle {
         id: card
-        anchors { top: parent.top; topMargin: 36; right: parent.right; rightMargin: 8 }
+        x: Math.max(8, Math.min(root.width - width - 8, root.requestedCenter - width / 2))
+        y: 36
         width: root.activeItem.implicitWidth
         height: root.activeItem.implicitHeight
         radius: 12
@@ -101,10 +107,26 @@ PanelWindow {
             Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
         }
 
-        Behavior on width { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing } }
-        Behavior on height { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing } }
+        Behavior on x {
+            enabled: root.positionAnimationEnabled
+            NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing }
+        }
+        Behavior on width {
+            enabled: root.positionAnimationEnabled
+            NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing }
+        }
+        Behavior on height {
+            enabled: root.positionAnimationEnabled
+            NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing }
+        }
         Behavior on opacity { NumberAnimation { duration: root.motion.fast; easing.type: root.motion.spatialEasing } }
         Behavior on scale { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing } }
+    }
+
+    Timer {
+        id: positionAnimationTimer
+        interval: root.motion.normal + 40
+        onTriggered: root.positionAnimationEnabled = true
     }
 
     Timer {

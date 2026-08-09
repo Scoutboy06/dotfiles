@@ -9,10 +9,10 @@ Row {
     required property var audio
     required property var bluetooth
     required property string activePanel
-    signal audioClicked
-    signal audioHovered
-    signal bluetoothClicked
-    signal bluetoothHovered
+    signal audioClicked(var anchor)
+    signal audioHovered(var anchor)
+    signal bluetoothClicked(var anchor)
+    signal bluetoothHovered(var anchor)
 
     property bool wifiConnected: false
     property bool ethernetConnected: false
@@ -43,19 +43,21 @@ Row {
         onClicked: root.run("omarchy launch wifi")
     }
     ActionButton {
+        id: bluetoothButton
         theme: root.theme; motion: root.motion
         text: root.bluetooth.enabled ? "󰂯" : "󰂲"
         textColor: root.bluetooth.enabled ? root.theme.accent : root.theme.foreground
         highlighted: root.activePanel === "bluetooth"
-        onClicked: root.bluetoothClicked()
-        onHoveredChanged: if (hovered) root.bluetoothHovered()
+        onClicked: root.bluetoothClicked(bluetoothButton)
+        onHoveredChanged: if (hovered) root.bluetoothHovered(bluetoothButton)
     }
     ActionButton {
+        id: audioButton
         theme: root.theme; motion: root.motion
         text: root.audio.muted ? "󰖁" : root.audio.volume > 0.6 ? "󰕾" : root.audio.volume > 0 ? "󰖀" : "󰕿"
         highlighted: root.activePanel === "audio"
-        onClicked: root.audioClicked()
-        onHoveredChanged: if (hovered) root.audioHovered()
+        onClicked: root.audioClicked(audioButton)
+        onHoveredChanged: if (hovered) root.audioHovered(audioButton)
 
         WheelHandler {
             onWheel: event => root.audio.setVolume(root.audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))

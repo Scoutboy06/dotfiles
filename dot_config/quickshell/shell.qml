@@ -23,6 +23,7 @@ ShellRoot {
         id: popupState
         property var activeScreen: null
         property string activePanel: ""
+        property real requestedCenter: 0
     }
 
     Variants {

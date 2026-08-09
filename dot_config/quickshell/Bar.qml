@@ -16,19 +16,26 @@ PanelWindow {
     property bool shown: false
     readonly property bool popoutOpen: popupState.activeScreen === screen && popupState.activePanel !== ""
 
-    function togglePanel(panelName) {
+    function requestedCenter(anchor) {
+        return anchor.mapToItem(panel, anchor.width / 2, 0).x + panel.x;
+    }
+
+    function togglePanel(panelName, anchor) {
         if (popupState.activeScreen === screen && popupState.activePanel === panelName) {
             popupState.activePanel = "";
             popupState.activeScreen = null;
         } else {
+            popupState.requestedCenter = requestedCenter(anchor);
             popupState.activeScreen = screen;
             popupState.activePanel = panelName;
         }
     }
 
-    function hoverPanel(panelName) {
-        if (popupState.activeScreen === screen && popupState.activePanel !== "")
+    function hoverPanel(panelName, anchor) {
+        if (popupState.activeScreen === screen && popupState.activePanel !== "") {
+            popupState.requestedCenter = requestedCenter(anchor);
             popupState.activePanel = panelName;
+        }
     }
 
     anchors { top: true; left: true; right: true }
@@ -109,10 +116,10 @@ PanelWindow {
                 audio: root.audio
                 bluetooth: root.bluetooth
                 activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
-                onAudioClicked: root.togglePanel("audio")
-                onAudioHovered: root.hoverPanel("audio")
-                onBluetoothClicked: root.togglePanel("bluetooth")
-                onBluetoothHovered: root.hoverPanel("bluetooth")
+                onAudioClicked: anchor => root.togglePanel("audio", anchor)
+                onAudioHovered: anchor => root.hoverPanel("audio", anchor)
+                onBluetoothClicked: anchor => root.togglePanel("bluetooth", anchor)
+                onBluetoothHovered: anchor => root.hoverPanel("bluetooth", anchor)
             }
         }
 
@@ -132,6 +139,7 @@ PanelWindow {
         audio: root.audio
         bluetooth: root.bluetooth
         activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
+        requestedCenter: root.popupState.requestedCenter
         onDismissRequested: {
             root.popupState.activePanel = "";
             root.popupState.activeScreen = null;
