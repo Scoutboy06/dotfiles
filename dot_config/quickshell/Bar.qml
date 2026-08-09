@@ -50,8 +50,8 @@ PanelWindow {
     }
 
     anchors { top: true; left: true; right: true }
-    implicitHeight: 40
-    exclusiveZone: 40
+    implicitHeight: 36
+    exclusiveZone: 36
     WlrLayershell.layer: WlrLayer.Overlay
     color: "transparent"
 

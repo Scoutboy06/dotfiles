@@ -49,7 +49,7 @@ PanelWindow {
 
     mask: Region {
         Region { x: 0; y: 0; width: root.rendered ? root.width : 0; height: root.rendered ? root.height : 0 }
-        Region { x: 0; y: 0; width: root.width; height: 40; intersection: Intersection.Subtract }
+        Region { x: 0; y: 0; width: root.width; height: 36; intersection: Intersection.Subtract }
     }
 
     Item {
