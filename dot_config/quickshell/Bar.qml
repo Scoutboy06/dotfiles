@@ -85,7 +85,7 @@ PanelWindow {
             width: leftControls.implicitWidth + 12
             height: parent.height
             radius: 8
-            color: root.theme.background
+            color: root.theme.barBackground
 
             Row {
                 id: leftControls
@@ -127,7 +127,7 @@ PanelWindow {
                 width: visible ? mediaControls.implicitWidth + 12 : 0
                 height: parent.height
                 radius: 8
-                color: root.theme.background
+                color: root.theme.barBackground
 
                 MediaControls {
                     id: mediaControls
@@ -149,7 +149,7 @@ PanelWindow {
                 width: clockButton.implicitWidth + 12
                 height: parent.height
                 radius: 8
-                color: root.theme.background
+                color: root.theme.barBackground
 
                 SystemClock { id: clock; precision: SystemClock.Minutes }
 
@@ -174,7 +174,7 @@ PanelWindow {
             width: rightControls.implicitWidth + 12
             height: parent.height
             radius: 8
-            color: root.theme.background
+            color: root.theme.barBackground
 
             Row {
                 id: rightControls

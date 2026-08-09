@@ -61,6 +61,10 @@ ShellRoot {
     IpcHandler {
         target: "shell"
 
+        function reloadTheme(): void {
+            root.shellTheme.reloadTheme();
+        }
+
         function quit(): void {
             if (root.exiting)
                 return;
