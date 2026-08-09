@@ -16,6 +16,7 @@ ShellRoot {
     readonly property alias mediaService: media
     readonly property alias notificationService: notifications
     readonly property alias powerService: power
+    readonly property alias hyprAnimationService: hyprAnimations
     readonly property alias sharedPopupState: popupState
 
     Theme { id: theme }
@@ -26,6 +27,7 @@ ShellRoot {
     MediaService { id: media }
     NotificationService { id: notifications }
     PowerService { id: power }
+    HyprAnimationService { id: hyprAnimations }
 
     QtObject {
         id: popupState
@@ -49,6 +51,7 @@ ShellRoot {
                 media: root.mediaService
                 notifications: root.notificationService
                 power: root.powerService
+                hyprAnimations: root.hyprAnimationService
                 popupState: root.sharedPopupState
                 exiting: root.exiting
             }

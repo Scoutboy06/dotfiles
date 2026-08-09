@@ -17,11 +17,13 @@ PanelWindow {
     required property var media
     required property var notifications
     required property var power
+    required property var hyprAnimations
     required property var popupState
     property bool exiting: false
     property bool shown: false
     readonly property var hyprlandMonitor: Hyprland.monitorFor(screen)
     readonly property bool fullscreen: hyprlandMonitor?.activeWorkspace?.hasFullscreen ?? false
+    readonly property bool hiding: exiting || fullscreen || !shown
     readonly property bool popoutOpen: popupState.activeScreen === screen && popupState.activePanel !== ""
 
     function dismissPopups() {
@@ -234,10 +236,18 @@ PanelWindow {
         }
 
         Behavior on y {
-            NumberAnimation { duration: root.motion.normal; easing.type: root.exiting ? Easing.InCubic : root.motion.emphasizedEasing }
+            NumberAnimation {
+                duration: root.hiding ? root.hyprAnimations.layerOutDuration : root.hyprAnimations.layerInDuration
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: root.hiding ? root.hyprAnimations.layerOutCurve : root.hyprAnimations.layerInCurve
+            }
         }
         Behavior on opacity {
-            NumberAnimation { duration: root.motion.fast; easing.type: root.motion.spatialEasing }
+            NumberAnimation {
+                duration: root.hiding ? root.hyprAnimations.layerOutDuration : root.hyprAnimations.layerInDuration
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: root.hiding ? root.hyprAnimations.layerOutCurve : root.hyprAnimations.layerInCurve
+            }
         }
     }
 
