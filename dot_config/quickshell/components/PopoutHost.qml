@@ -20,15 +20,15 @@ PanelWindow {
     readonly property bool open: activePanel !== ""
     readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : displayedPanel === "network" ? networkPanel : calendarPanel
 
-    visible: rendered
+    visible: true
     anchors { top: true; bottom: true; left: true; right: true }
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     color: "transparent"
 
     mask: Region {
-        Region { x: 0; y: 0; width: root.width; height: root.height }
+        Region { x: 0; y: 0; width: root.rendered ? root.width : 0; height: root.rendered ? root.height : 0 }
         Region { x: 0; y: 0; width: root.width; height: 40; intersection: Intersection.Subtract }
     }
 

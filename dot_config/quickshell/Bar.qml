@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import "components"
@@ -42,6 +43,7 @@ PanelWindow {
     anchors { top: true; left: true; right: true }
     implicitHeight: 40
     exclusiveZone: 40
+    WlrLayershell.layer: WlrLayer.Overlay
     color: "transparent"
 
     Component.onCompleted: reveal.start()
@@ -90,14 +92,18 @@ PanelWindow {
                 hoverEnabled: !root.popoutOpen
             }
 
-            ClockButton {
+            SystemClock { id: clock; precision: SystemClock.Minutes }
+
+            ActionButton {
+                id: clockButton
                 anchors.verticalCenter: parent.verticalCenter
                 theme: root.theme
                 motion: root.motion
+                text: Qt.formatDateTime(clock.date, "ddd d MMM  HH:mm")
                 highlighted: root.popupState.activeScreen === root.screen && root.popupState.activePanel === "calendar"
                 hoverEnabled: !root.popoutOpen
-                onClicked: anchor => root.togglePanel("calendar", anchor)
-                onHovered: anchor => root.hoverPanel("calendar", anchor)
+                onClicked: root.togglePanel("calendar", clockButton)
+                onHoveredChanged: if (hovered) root.hoverPanel("calendar", clockButton)
             }
         }
 
