@@ -12,6 +12,7 @@ PanelWindow {
     required property var network
     required property var media
     required property var notifications
+    required property var power
     property string activePanel: ""
     property string displayedPanel: "audio"
     property real requestedCenter: width / 2
@@ -21,7 +22,7 @@ PanelWindow {
     signal dismissRequested
 
     readonly property bool open: activePanel !== ""
-    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : displayedPanel === "network" ? networkPanel : displayedPanel === "calendar" ? calendarPanel : displayedPanel === "media" ? mediaPanel : notificationPanel
+    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : displayedPanel === "network" ? networkPanel : displayedPanel === "calendar" ? calendarPanel : displayedPanel === "media" ? mediaPanel : displayedPanel === "notifications" ? notificationPanel : powerPanel
 
     visible: true
     anchors { top: true; bottom: true; left: true; right: true }
@@ -164,6 +165,21 @@ PanelWindow {
             opacity: root.open && root.displayedPanel === "notifications" ? 1 : 0
             y: root.open && root.displayedPanel === "notifications" ? 0 : -6
             enabled: root.open && root.displayedPanel === "notifications"
+
+            Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
+            Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
+        }
+
+        PowerPopout {
+            id: powerPanel
+            anchors.fill: parent
+            power: root.power
+            theme: root.theme
+            motion: root.motion
+            opacity: root.open && root.displayedPanel === "power" ? 1 : 0
+            y: root.open && root.displayedPanel === "power" ? 0 : -6
+            enabled: root.open && root.displayedPanel === "power"
+            onCloseRequested: root.dismissRequested()
 
             Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
             Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }

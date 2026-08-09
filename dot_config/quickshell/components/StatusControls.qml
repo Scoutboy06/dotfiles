@@ -1,4 +1,3 @@
-import Quickshell
 import QtQuick
 
 Row {
@@ -15,11 +14,10 @@ Row {
     signal bluetoothHovered(var anchor)
     signal networkClicked(var anchor)
     signal networkHovered(var anchor)
-    signal powerClicked
+    signal powerClicked(var anchor)
+    signal powerHovered(var anchor)
 
     spacing: 2
-
-    function run(command) { Quickshell.execDetached(["sh", "-lc", command]); }
 
     ActionButton {
         id: networkButton
@@ -52,11 +50,11 @@ Row {
         }
     }
     ActionButton {
+        id: powerButton
         theme: root.theme; motion: root.motion; text: "󰐥"; textColor: root.theme.foreground
+        highlighted: root.activePanel === "power"
         hoverEnabled: root.activePanel === ""
-        onClicked: {
-            root.powerClicked();
-            root.run("omarchy-menu system");
-        }
+        onClicked: root.powerClicked(powerButton)
+        onHoveredChanged: if (hovered) root.powerHovered(powerButton)
     }
 }

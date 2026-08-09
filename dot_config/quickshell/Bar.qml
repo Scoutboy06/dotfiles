@@ -15,6 +15,7 @@ PanelWindow {
     required property var network
     required property var media
     required property var notifications
+    required property var power
     required property var popupState
     property bool exiting: false
     property bool shown: false
@@ -207,7 +208,8 @@ PanelWindow {
                     onBluetoothHovered: anchor => root.hoverPanel("bluetooth", anchor)
                     onNetworkClicked: anchor => root.togglePanel("network", anchor)
                     onNetworkHovered: anchor => root.hoverPanel("network", anchor)
-                    onPowerClicked: root.dismissPopups()
+                    onPowerClicked: anchor => root.togglePanel("power", anchor)
+                    onPowerHovered: anchor => root.hoverPanel("power", anchor)
                 }
             }
 
@@ -244,6 +246,7 @@ PanelWindow {
         network: root.network
         media: root.media
         notifications: root.notifications
+        power: root.power
         activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
         requestedCenter: root.popupState.requestedCenter
         onDismissRequested: {

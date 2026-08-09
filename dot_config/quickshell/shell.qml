@@ -15,6 +15,7 @@ ShellRoot {
     readonly property alias networkService: network
     readonly property alias mediaService: media
     readonly property alias notificationService: notifications
+    readonly property alias powerService: power
     readonly property alias sharedPopupState: popupState
 
     Theme { id: theme }
@@ -24,6 +25,7 @@ ShellRoot {
     NetworkService { id: network }
     MediaService { id: media }
     NotificationService { id: notifications }
+    PowerService { id: power }
 
     QtObject {
         id: popupState
@@ -46,6 +48,7 @@ ShellRoot {
                 network: root.networkService
                 media: root.mediaService
                 notifications: root.notificationService
+                power: root.powerService
                 popupState: root.sharedPopupState
                 exiting: root.exiting
             }
