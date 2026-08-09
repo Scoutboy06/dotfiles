@@ -13,15 +13,6 @@
     }
   },
   "cli_default_open_behavior": "existing_window",
-  "agent": {
-    "default_model": {
-      "provider": "copilot_chat",
-      "model": "gpt-4.1",
-      "enable_thinking": false
-    },
-    "favorite_models": [],
-    "model_parameters": []
-  },
   "edit_predictions": {
     "provider": "none"
   },
@@ -72,20 +63,6 @@
   },
   "linked_edits": true,
   "tab_size": 2,
-  "agent_servers": {
-    "opencode": {
-      "type": "registry",
-      "favorite_config_option_values": {
-        "model": [
-          "opencode/deepseek-v4-flash-free",
-          "github-copilot/claude-haiku-4.5"
-        ]
-      }
-    },
-    "github-copilot-cli": {
-      "type": "registry"
-    }
-  },
   "ui_font_size": 16,
   "buffer_font_size": 15,
   "theme": "Omazed",
