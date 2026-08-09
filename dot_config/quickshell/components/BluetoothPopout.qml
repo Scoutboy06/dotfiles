@@ -8,6 +8,7 @@ Item {
     required property var bluetooth
     required property var theme
     required property var motion
+    signal closeRequested
     implicitWidth: 340
     implicitHeight: content.implicitHeight + 36
 
@@ -45,7 +46,10 @@ Item {
                 motion: root.motion
                 text: "󰒓"
                 textColor: root.theme.accent
-                onClicked: Quickshell.execDetached(["sh", "-lc", "omarchy launch bluetooth"])
+                onClicked: {
+                    Quickshell.execDetached(["sh", "-lc", "omarchy launch bluetooth"]);
+                    root.closeRequested();
+                }
             }
 
             Rectangle {

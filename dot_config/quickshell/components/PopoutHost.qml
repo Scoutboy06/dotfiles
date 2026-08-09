@@ -88,6 +88,7 @@ PanelWindow {
             opacity: root.open && root.displayedPanel === "audio" ? 1 : 0
             y: root.open && root.displayedPanel === "audio" ? 0 : -6
             enabled: root.open && root.displayedPanel === "audio"
+            onCloseRequested: root.dismissRequested()
 
             Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
             Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
@@ -102,6 +103,7 @@ PanelWindow {
             opacity: root.open && root.displayedPanel === "bluetooth" ? 1 : 0
             y: root.open && root.displayedPanel === "bluetooth" ? 0 : -6
             enabled: root.open && root.displayedPanel === "bluetooth"
+            onCloseRequested: root.dismissRequested()
 
             Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
             Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }

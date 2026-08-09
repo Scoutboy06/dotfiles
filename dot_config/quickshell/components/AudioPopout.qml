@@ -7,6 +7,7 @@ Item {
     required property var audio
     required property var theme
     required property var motion
+    signal closeRequested
     implicitWidth: 340
     implicitHeight: content.implicitHeight + 36
 
@@ -36,7 +37,10 @@ Item {
                 motion: root.motion
                 text: "󰒓"
                 textColor: root.theme.accent
-                onClicked: Quickshell.execDetached(["sh", "-lc", "omarchy launch audio"])
+                onClicked: {
+                    Quickshell.execDetached(["sh", "-lc", "omarchy launch audio"]);
+                    root.closeRequested();
+                }
             }
         }
 
