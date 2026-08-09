@@ -51,7 +51,7 @@ Row {
         }
     }
     ActionButton {
-        theme: root.theme; motion: root.motion; text: "󰐥"; textColor: root.theme.urgent
+        theme: root.theme; motion: root.motion; text: "󰐥"; textColor: root.theme.foreground
         hoverEnabled: root.activePanel === ""
         onClicked: root.run("omarchy-menu system")
     }
