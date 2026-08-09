@@ -12,12 +12,14 @@ ShellRoot {
     readonly property alias shellMotion: motion
     readonly property alias audioService: audio
     readonly property alias bluetoothService: bluetooth
+    readonly property alias networkService: network
     readonly property alias sharedPopupState: popupState
 
     Theme { id: theme }
     Motion { id: motion }
     Audio { id: audio }
     BluetoothService { id: bluetooth }
+    NetworkService { id: network }
 
     QtObject {
         id: popupState
@@ -37,6 +39,7 @@ ShellRoot {
                 motion: root.shellMotion
                 audio: root.audioService
                 bluetooth: root.bluetoothService
+                network: root.networkService
                 popupState: root.sharedPopupState
                 exiting: root.exiting
             }

@@ -11,6 +11,7 @@ PanelWindow {
     required property var motion
     required property var audio
     required property var bluetooth
+    required property var network
     required property var popupState
     property bool exiting: false
     property bool shown: false
@@ -115,11 +116,14 @@ PanelWindow {
                 motion: root.motion
                 audio: root.audio
                 bluetooth: root.bluetooth
+                network: root.network
                 activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
                 onAudioClicked: anchor => root.togglePanel("audio", anchor)
                 onAudioHovered: anchor => root.hoverPanel("audio", anchor)
                 onBluetoothClicked: anchor => root.togglePanel("bluetooth", anchor)
                 onBluetoothHovered: anchor => root.hoverPanel("bluetooth", anchor)
+                onNetworkClicked: anchor => root.togglePanel("network", anchor)
+                onNetworkHovered: anchor => root.hoverPanel("network", anchor)
             }
         }
 
@@ -138,6 +142,7 @@ PanelWindow {
         motion: root.motion
         audio: root.audio
         bluetooth: root.bluetooth
+        network: root.network
         activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
         requestedCenter: root.popupState.requestedCenter
         onDismissRequested: {

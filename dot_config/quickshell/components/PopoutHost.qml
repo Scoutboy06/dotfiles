@@ -9,6 +9,7 @@ PanelWindow {
     required property var motion
     required property var audio
     required property var bluetooth
+    required property var network
     property string activePanel: ""
     property string displayedPanel: "audio"
     property real requestedCenter: width / 2
@@ -17,7 +18,7 @@ PanelWindow {
     signal dismissRequested
 
     readonly property bool open: activePanel !== ""
-    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : bluetoothPanel
+    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : networkPanel
 
     visible: rendered
     anchors { top: true; bottom: true; left: true; right: true }
@@ -103,6 +104,21 @@ PanelWindow {
             opacity: root.open && root.displayedPanel === "bluetooth" ? 1 : 0
             y: root.open && root.displayedPanel === "bluetooth" ? 0 : -6
             enabled: root.open && root.displayedPanel === "bluetooth"
+            onCloseRequested: root.dismissRequested()
+
+            Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
+            Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
+        }
+
+        NetworkPopout {
+            id: networkPanel
+            anchors.fill: parent
+            network: root.network
+            theme: root.theme
+            motion: root.motion
+            opacity: root.open && root.displayedPanel === "network" ? 1 : 0
+            y: root.open && root.displayedPanel === "network" ? 0 : -6
+            enabled: root.open && root.displayedPanel === "network"
             onCloseRequested: root.dismissRequested()
 
             Behavior on opacity { NumberAnimation { duration: root.motion.fast } }

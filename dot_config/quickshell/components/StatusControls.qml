@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Io
 import QtQuick
 
 Row {
@@ -8,39 +7,27 @@ Row {
     required property var motion
     required property var audio
     required property var bluetooth
+    required property var network
     required property string activePanel
     signal audioClicked(var anchor)
     signal audioHovered(var anchor)
     signal bluetoothClicked(var anchor)
     signal bluetoothHovered(var anchor)
+    signal networkClicked(var anchor)
+    signal networkHovered(var anchor)
 
-    property bool wifiConnected: false
-    property bool ethernetConnected: false
     spacing: 2
 
     function run(command) { Quickshell.execDetached(["sh", "-lc", command]); }
-    function refresh() { state.running = true; }
-
-    Process {
-        id: state
-        command: ["sh", "-lc", "iface=$(ip route show default 2>/dev/null | awk 'NR == 1 {print $5}'); printf '%s|%s' \"$([ -n \"$iface\" ] && echo connected || echo disconnected)\" \"$([ -n \"$iface\" ] && [ ! -d \"/sys/class/net/$iface/wireless\" ] && echo yes || echo no)\""]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const parts = text.trim().split("|");
-                root.wifiConnected = parts[0] === "connected";
-                root.ethernetConnected = parts[1] === "yes";
-            }
-        }
-    }
-
-    Timer { interval: 3000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
     ActionButton {
+        id: networkButton
         theme: root.theme; motion: root.motion
-        text: root.ethernetConnected ? "󰈀" : root.wifiConnected ? "󰤨" : "󰤭"
-        textColor: root.wifiConnected ? root.theme.success : root.theme.foreground
-        hoverEnabled: root.activePanel === ""
-        onClicked: root.run("omarchy launch wifi")
+        text: root.network.wired.length > 0 ? "󰈀" : root.network.connectedSsid !== "" ? "󰤨" : "󰤭"
+        textColor: root.network.connectedSsid !== "" ? root.theme.success : root.theme.foreground
+        highlighted: root.activePanel === "network"
+        onClicked: root.networkClicked(networkButton)
+        onHoveredChanged: if (hovered) root.networkHovered(networkButton)
     }
     ActionButton {
         id: bluetoothButton
