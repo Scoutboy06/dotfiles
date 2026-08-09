@@ -12,27 +12,16 @@ PanelWindow {
     property bool exiting: false
     property bool shown: false
 
-    anchors {
-        top: true
-        left: true
-        right: true
-    }
-
+    anchors { top: true; left: true; right: true }
     implicitHeight: 40
     exclusiveZone: 40
     color: "transparent"
 
     Component.onCompleted: reveal.start()
-
-    Timer {
-        id: reveal
-        interval: 1
-        onTriggered: root.shown = true
-    }
+    Timer { id: reveal; interval: 1; onTriggered: root.shown = true }
 
     Rectangle {
         id: panel
-
         x: 8
         y: root.shown && !root.exiting ? 4 : -height - 4
         width: parent.width - 16
@@ -41,71 +30,64 @@ PanelWindow {
         opacity: root.shown && !root.exiting ? 1 : 0
         color: root.theme.background
 
-        WorkspaceList {
-            anchors {
-                left: parent.left
-                leftMargin: 10
-                verticalCenter: parent.verticalCenter
+        Row {
+            anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
+            spacing: 5
+
+            ActionButton {
+                theme: root.theme
+                motion: root.motion
+                text: "󰣇"
+                textColor: root.theme.accent
+                onClicked: Quickshell.execDetached(["omarchy-launch-walker"])
             }
-            screen: root.screen
-            theme: root.theme
-            motion: root.motion
+
+            WorkspaceList {
+                anchors.verticalCenter: parent.verticalCenter
+                screen: root.screen
+                theme: root.theme
+                motion: root.motion
+            }
         }
 
-        SystemClock {
-            id: clock
-            precision: SystemClock.Minutes
-        }
-
-        Text {
+        Row {
             anchors.centerIn: parent
-            text: Qt.formatDateTime(clock.date, "ddd d MMM  HH:mm")
-            color: root.theme.foreground
-            font.pixelSize: 13
-            font.bold: true
+            spacing: 10
 
-            Behavior on color {
-                ColorAnimation { duration: root.motion.normal }
+            MediaControls {
+                anchors.verticalCenter: parent.verticalCenter
+                theme: root.theme
+                motion: root.motion
+            }
+
+            SystemClock { id: clock; precision: SystemClock.Minutes }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Qt.formatDateTime(clock.date, "ddd d MMM  HH:mm")
+                color: root.theme.foreground
+                font.pixelSize: 13
+                font.bold: true
+                Behavior on color { ColorAnimation { duration: root.motion.normal } }
             }
         }
 
-        RowLayout {
-            anchors {
-                right: parent.right
-                rightMargin: 10
-                verticalCenter: parent.verticalCenter
-            }
-            spacing: 12
+        Row {
+            anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
+            spacing: 3
 
-            Text {
-                text: "NET"
-                color: root.theme.success
-                font.pixelSize: 12
-            }
-
-            Text {
-                text: "BAT"
-                color: root.theme.warning
-                font.pixelSize: 12
-            }
+            SystemTray { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
+            NotificationCenter { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; theme: root.theme; motion: root.motion }
+            BatteryStatus { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
+            StatusControls { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
         }
 
         Behavior on y {
-            NumberAnimation {
-                duration: root.motion.normal
-                easing.type: root.exiting ? Easing.InCubic : root.motion.emphasizedEasing
-            }
+            NumberAnimation { duration: root.motion.normal; easing.type: root.exiting ? Easing.InCubic : root.motion.emphasizedEasing }
         }
-
         Behavior on opacity {
-            NumberAnimation {
-                duration: root.motion.fast
-                easing.type: root.motion.spatialEasing
-            }
+            NumberAnimation { duration: root.motion.fast; easing.type: root.motion.spatialEasing }
         }
-
-        Behavior on color {
-            ColorAnimation { duration: root.motion.normal }
-        }
+        Behavior on color { ColorAnimation { duration: root.motion.normal } }
     }
 }
