@@ -7,6 +7,7 @@ Row {
     required property var screen
     required property var theme
     required property var motion
+    property bool hoverEnabled: true
 
     spacing: 6
 
@@ -21,6 +22,7 @@ Row {
             workspace: modelData
             theme: root.theme
             motion: root.motion
+            hoverEnabled: root.hoverEnabled
         }
     }
 }

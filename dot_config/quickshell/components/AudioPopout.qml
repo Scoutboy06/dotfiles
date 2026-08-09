@@ -1,13 +1,18 @@
 import Quickshell
 import QtQuick
 
-PopoutLayer {
+Item {
     id: root
 
     required property var audio
+    required property var theme
+    required property var motion
+    implicitWidth: 340
+    implicitHeight: content.implicitHeight + 36
 
     Column {
-        width: parent.width
+        id: content
+        anchors { fill: parent; margins: 18 }
         spacing: 14
 
         Row {

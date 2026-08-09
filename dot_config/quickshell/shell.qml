@@ -21,8 +21,8 @@ ShellRoot {
 
     QtObject {
         id: popupState
-        property var audioScreen: null
-        property var bluetoothScreen: null
+        property var activeScreen: null
+        property string activePanel: ""
     }
 
     Variants {

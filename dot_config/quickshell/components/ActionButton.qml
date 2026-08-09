@@ -9,12 +9,15 @@ Rectangle {
     property color textColor: theme.foreground
     property string command: ""
     property string tooltip: ""
+    property bool highlighted: false
+    property bool hoverEnabled: true
+    readonly property alias hovered: hover.hovered
     signal clicked
 
     implicitWidth: Math.max(26, label.implicitWidth + 12)
     implicitHeight: 24
     radius: height / 2
-    color: hover.hovered ? Qt.lighter(theme.surface, 1.25) : "transparent"
+    color: highlighted || (hoverEnabled && hover.hovered) ? Qt.lighter(theme.surface, 1.25) : "transparent"
     scale: tap.pressed ? 0.9 : 1
 
     Text {

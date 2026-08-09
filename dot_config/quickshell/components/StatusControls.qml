@@ -8,8 +8,11 @@ Row {
     required property var motion
     required property var audio
     required property var bluetooth
+    required property string activePanel
     signal audioClicked
+    signal audioHovered
     signal bluetoothClicked
+    signal bluetoothHovered
 
     property bool wifiConnected: false
     property bool ethernetConnected: false
@@ -36,18 +39,23 @@ Row {
         theme: root.theme; motion: root.motion
         text: root.ethernetConnected ? "󰈀" : root.wifiConnected ? "󰤨" : "󰤭"
         textColor: root.wifiConnected ? root.theme.success : root.theme.foreground
+        hoverEnabled: root.activePanel === ""
         onClicked: root.run("omarchy launch wifi")
     }
     ActionButton {
         theme: root.theme; motion: root.motion
         text: root.bluetooth.enabled ? "󰂯" : "󰂲"
         textColor: root.bluetooth.enabled ? root.theme.accent : root.theme.foreground
+        highlighted: root.activePanel === "bluetooth"
         onClicked: root.bluetoothClicked()
+        onHoveredChanged: if (hovered) root.bluetoothHovered()
     }
     ActionButton {
         theme: root.theme; motion: root.motion
         text: root.audio.muted ? "󰖁" : root.audio.volume > 0.6 ? "󰕾" : root.audio.volume > 0 ? "󰖀" : "󰕿"
+        highlighted: root.activePanel === "audio"
         onClicked: root.audioClicked()
+        onHoveredChanged: if (hovered) root.audioHovered()
 
         WheelHandler {
             onWheel: event => root.audio.setVolume(root.audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))
@@ -55,6 +63,7 @@ Row {
     }
     ActionButton {
         theme: root.theme; motion: root.motion; text: "󰐥"; textColor: root.theme.urgent
+        hoverEnabled: root.activePanel === ""
         onClicked: root.run("omarchy-menu system")
     }
 }

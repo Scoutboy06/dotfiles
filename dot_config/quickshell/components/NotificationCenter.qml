@@ -8,6 +8,7 @@ Item {
     required property var screen
     required property var theme
     required property var motion
+    property bool hoverEnabled: true
 
     property bool open: false
     property var notifications: []
@@ -24,6 +25,7 @@ Item {
         motion: root.motion
         text: "󰂚 " + root.notifications.length
         textColor: root.notifications.length > 0 ? root.theme.accent : root.theme.foreground
+        hoverEnabled: root.hoverEnabled
         onClicked: { root.open = !root.open; root.refresh(); }
     }
 

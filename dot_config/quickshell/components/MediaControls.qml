@@ -5,13 +5,14 @@ Row {
     id: root
     required property var theme
     required property var motion
+    property bool hoverEnabled: true
 
     readonly property var player: Mpris.players.values.find(player => player.isPlaying) ?? Mpris.players.values[0] ?? null
     visible: player !== null
     spacing: 2
 
     ActionButton {
-        theme: root.theme; motion: root.motion; text: "󰒮"
+        theme: root.theme; motion: root.motion; text: "󰒮"; hoverEnabled: root.hoverEnabled
         visible: root.player?.canGoPrevious ?? false
         onClicked: root.player.previous()
     }
@@ -29,11 +30,12 @@ Row {
     ActionButton {
         theme: root.theme; motion: root.motion
         text: root.player?.isPlaying ? "󰏤" : "󰐊"
+        hoverEnabled: root.hoverEnabled
         onClicked: root.player.togglePlaying()
     }
 
     ActionButton {
-        theme: root.theme; motion: root.motion; text: "󰒭"
+        theme: root.theme; motion: root.motion; text: "󰒭"; hoverEnabled: root.hoverEnabled
         visible: root.player?.canGoNext ?? false
         onClicked: root.player.next()
     }

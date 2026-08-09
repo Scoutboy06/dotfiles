@@ -6,6 +6,7 @@ Row {
     id: root
     required property var theme
     required property var motion
+    property bool hoverEnabled: true
     spacing: 3
 
     Repeater {
@@ -16,7 +17,7 @@ Row {
             width: 24
             height: 24
             radius: 12
-            color: hover.hovered ? Qt.lighter(root.theme.surface, 1.25) : "transparent"
+            color: root.hoverEnabled && hover.hovered ? Qt.lighter(root.theme.surface, 1.25) : "transparent"
 
             IconImage {
                 anchors.centerIn: parent

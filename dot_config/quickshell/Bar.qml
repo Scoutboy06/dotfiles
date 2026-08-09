@@ -14,6 +14,22 @@ PanelWindow {
     required property var popupState
     property bool exiting: false
     property bool shown: false
+    readonly property bool popoutOpen: popupState.activeScreen === screen && popupState.activePanel !== ""
+
+    function togglePanel(panelName) {
+        if (popupState.activeScreen === screen && popupState.activePanel === panelName) {
+            popupState.activePanel = "";
+            popupState.activeScreen = null;
+        } else {
+            popupState.activeScreen = screen;
+            popupState.activePanel = panelName;
+        }
+    }
+
+    function hoverPanel(panelName) {
+        if (popupState.activeScreen === screen && popupState.activePanel !== "")
+            popupState.activePanel = panelName;
+    }
 
     anchors { top: true; left: true; right: true }
     implicitHeight: 40
@@ -42,6 +58,7 @@ PanelWindow {
                 motion: root.motion
                 text: "󰣇"
                 textColor: root.theme.accent
+                hoverEnabled: !root.popoutOpen
                 onClicked: Quickshell.execDetached(["omarchy-launch-walker"])
             }
 
@@ -50,6 +67,7 @@ PanelWindow {
                 screen: root.screen
                 theme: root.theme
                 motion: root.motion
+                hoverEnabled: !root.popoutOpen
             }
         }
 
@@ -61,6 +79,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 theme: root.theme
                 motion: root.motion
+                hoverEnabled: !root.popoutOpen
             }
 
             SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -80,8 +99,8 @@ PanelWindow {
             anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
             spacing: 3
 
-            SystemTray { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
-            NotificationCenter { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; theme: root.theme; motion: root.motion }
+            SystemTray { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion; hoverEnabled: !root.popoutOpen }
+            NotificationCenter { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; theme: root.theme; motion: root.motion; hoverEnabled: !root.popoutOpen }
             BatteryStatus { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
             StatusControls {
                 anchors.verticalCenter: parent.verticalCenter
@@ -89,14 +108,11 @@ PanelWindow {
                 motion: root.motion
                 audio: root.audio
                 bluetooth: root.bluetooth
-                onAudioClicked: {
-                    root.popupState.bluetoothScreen = null;
-                    root.popupState.audioScreen = root.popupState.audioScreen === root.screen ? null : root.screen;
-                }
-                onBluetoothClicked: {
-                    root.popupState.audioScreen = null;
-                    root.popupState.bluetoothScreen = root.popupState.bluetoothScreen === root.screen ? null : root.screen;
-                }
+                activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
+                onAudioClicked: root.togglePanel("audio")
+                onAudioHovered: root.hoverPanel("audio")
+                onBluetoothClicked: root.togglePanel("bluetooth")
+                onBluetoothHovered: root.hoverPanel("bluetooth")
             }
         }
 
@@ -109,21 +125,16 @@ PanelWindow {
         Behavior on color { ColorAnimation { duration: root.motion.normal } }
     }
 
-    AudioPopout {
+    PopoutHost {
         screen: root.screen
         theme: root.theme
         motion: root.motion
         audio: root.audio
-        open: root.popupState.audioScreen === root.screen
-        onDismissRequested: root.popupState.audioScreen = null
-    }
-
-    BluetoothPopout {
-        screen: root.screen
-        theme: root.theme
-        motion: root.motion
         bluetooth: root.bluetooth
-        open: root.popupState.bluetoothScreen === root.screen
-        onDismissRequested: root.popupState.bluetoothScreen = null
+        activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
+        onDismissRequested: {
+            root.popupState.activePanel = "";
+            root.popupState.activeScreen = null;
+        }
     }
 }

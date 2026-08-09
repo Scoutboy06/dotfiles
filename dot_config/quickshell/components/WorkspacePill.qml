@@ -6,9 +6,10 @@ Rectangle {
     required property var workspace
     required property var theme
     required property var motion
+    property bool hoverEnabled: true
 
     readonly property bool active: workspace.active
-    readonly property bool hovered: hover.hovered
+    readonly property bool hovered: hoverEnabled && hover.hovered
 
     width: active ? 34 : 22
     height: 22
