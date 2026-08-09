@@ -12,6 +12,7 @@ QtObject {
     property color urgent: "#f7768e"
     property color success: "#9ece6a"
     property color warning: "#e0af68"
+    readonly property string fontFamily: "CaskaydiaMono Nerd Font"
 
     function load(contents) {
         const colours = {};

@@ -22,6 +22,7 @@ Row {
         elide: Text.ElideRight
         text: root.player?.trackTitle || root.player?.identity || ""
         color: root.theme.foreground
+        font.family: root.theme.fontFamily
         font.pixelSize: 12
     }
 

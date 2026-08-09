@@ -22,7 +22,7 @@ Rectangle {
         anchors.centerIn: parent
         color: root.textColor
         font.pixelSize: 13
-        font.family: "FiraCode Nerd Font"
+        font.family: root.theme.fontFamily
     }
 
     HoverHandler { id: hover }

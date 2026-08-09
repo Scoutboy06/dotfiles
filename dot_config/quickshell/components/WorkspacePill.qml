@@ -20,6 +20,7 @@ Rectangle {
         anchors.centerIn: parent
         text: root.workspace.id
         color: root.active ? root.theme.background : root.theme.foreground
+        font.family: root.theme.fontFamily
         font.pixelSize: 12
         font.bold: root.active
 

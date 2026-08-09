@@ -21,6 +21,6 @@ Rectangle {
         text: (root.charging ? "󰂄 " : "󰁹 ") + Math.round(root.battery.percentage * 100) + "%"
         color: root.battery.percentage <= 0.2 && !root.charging ? root.theme.urgent : root.theme.foreground
         font.pixelSize: 12
-        font.family: "FiraCode Nerd Font"
+        font.family: root.theme.fontFamily
     }
 }

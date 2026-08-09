@@ -9,6 +9,8 @@ PanelWindow {
 
     required property var theme
     required property var motion
+    required property var audio
+    required property var popupState
     property bool exiting: false
     property bool shown: false
 
@@ -66,6 +68,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 text: Qt.formatDateTime(clock.date, "ddd d MMM  HH:mm")
                 color: root.theme.foreground
+                font.family: root.theme.fontFamily
                 font.pixelSize: 13
                 font.bold: true
                 Behavior on color { ColorAnimation { duration: root.motion.normal } }
@@ -79,7 +82,13 @@ PanelWindow {
             SystemTray { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
             NotificationCenter { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; theme: root.theme; motion: root.motion }
             BatteryStatus { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
-            StatusControls { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
+            StatusControls {
+                anchors.verticalCenter: parent.verticalCenter
+                theme: root.theme
+                motion: root.motion
+                audio: root.audio
+                onAudioClicked: root.popupState.audioScreen = root.popupState.audioScreen === root.screen ? null : root.screen
+            }
         }
 
         Behavior on y {
@@ -89,5 +98,14 @@ PanelWindow {
             NumberAnimation { duration: root.motion.fast; easing.type: root.motion.spatialEasing }
         }
         Behavior on color { ColorAnimation { duration: root.motion.normal } }
+    }
+
+    AudioPopout {
+        screen: root.screen
+        theme: root.theme
+        motion: root.motion
+        audio: root.audio
+        open: root.popupState.audioScreen === root.screen
+        onDismissRequested: root.popupState.audioScreen = null
     }
 }
