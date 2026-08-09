@@ -3,24 +3,26 @@ import QtQuick
 Rectangle {
     id: root
 
-    required property var workspace
+    required property string label
+    required property bool active
     required property var theme
     required property var motion
     property bool hoverEnabled: true
     signal activated
 
-    readonly property bool active: workspace.active
     readonly property bool hovered: hoverEnabled && hover.hovered
+    readonly property real compactWidth: Math.max(22, labelText.implicitWidth + 12)
 
-    width: active ? 34 : 22
+    width: compactWidth + (active ? 12 : 0)
     height: 22
     radius: height / 2
     scale: tap.pressed ? 0.88 : hovered ? 1.08 : 1
-    color: active ? theme.accent : hovered ? Qt.lighter(theme.surface, 1.25) : theme.surface
+    color: active ? theme.accent : hovered ? Qt.lighter(theme.surface, 1.25) : "transparent"
 
     Text {
+        id: labelText
         anchors.centerIn: parent
-        text: root.workspace.id
+        text: root.label
         color: root.active ? root.theme.background : root.theme.foreground
         font.family: root.theme.fontFamily
         font.pixelSize: 12
@@ -35,10 +37,7 @@ Rectangle {
 
     TapHandler {
         id: tap
-        onTapped: {
-            root.activated();
-            root.workspace.activate();
-        }
+        onTapped: root.activated()
     }
 
     Behavior on x {

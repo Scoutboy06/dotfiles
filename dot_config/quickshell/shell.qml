@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import QtQuick
 import "services"
@@ -54,6 +55,16 @@ ShellRoot {
                 hyprAnimations: root.hyprAnimationService
                 popupState: root.sharedPopupState
                 exiting: root.exiting
+            }
+        }
+    }
+
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (event.name === "activespecial") {
+                Hyprland.refreshMonitors();
+                Hyprland.refreshWorkspaces();
             }
         }
     }
