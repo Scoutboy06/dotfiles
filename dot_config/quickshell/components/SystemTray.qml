@@ -9,6 +9,7 @@ Row {
     required property var theme
     required property var motion
     property bool hoverEnabled: true
+    readonly property bool hasItems: SystemTray.items.values.length > 0
     signal activated
     signal menuRequested(var menu, var anchor)
 
