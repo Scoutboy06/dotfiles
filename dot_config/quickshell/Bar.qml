@@ -70,6 +70,17 @@ PanelWindow {
 
     onFullscreenChanged: if (fullscreen) dismissPopups()
     Component.onCompleted: reveal.start()
+
+    Connections {
+        target: root.notifications
+        function onNotificationsChanged() {
+            if (root.notifications.notifications.length === 0
+                    && root.popupState.activeScreen === root.screen
+                    && root.popupState.activePanel === "notifications")
+                root.dismissPopups();
+        }
+    }
+
     Timer { id: reveal; interval: 1; onTriggered: root.shown = true }
 
     Item {

@@ -8,6 +8,7 @@ ActionButton {
     signal notificationClicked(var anchor)
     signal notificationHovered(var anchor)
 
+    visible: notifications.notifications.length > 0
     text: "󰂚 " + notifications.notifications.length
     textColor: notifications.notifications.length > 0 ? theme.accent : theme.foreground
     highlighted: active
