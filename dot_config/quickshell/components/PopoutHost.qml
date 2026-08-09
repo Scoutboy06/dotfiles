@@ -15,6 +15,7 @@ PanelWindow {
     property string activePanel: ""
     property string displayedPanel: "audio"
     property real requestedCenter: width / 2
+    property real animatedCenter: requestedCenter
     property bool rendered: false
     property bool positionAnimationEnabled: false
     signal dismissRequested
@@ -64,7 +65,7 @@ PanelWindow {
 
     Rectangle {
         id: card
-        x: Math.max(8, Math.min(root.width - width - 8, root.requestedCenter - width / 2))
+        x: Math.max(8, Math.min(root.width - width - 8, root.animatedCenter - width / 2))
         y: 36
         width: root.activeItem.implicitWidth
         height: root.activeItem.implicitHeight
@@ -168,10 +169,6 @@ PanelWindow {
             Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
         }
 
-        Behavior on x {
-            enabled: root.positionAnimationEnabled
-            NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing }
-        }
         Behavior on width {
             enabled: root.positionAnimationEnabled
             NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing }
@@ -182,6 +179,11 @@ PanelWindow {
         }
         Behavior on opacity { NumberAnimation { duration: root.motion.fast; easing.type: root.motion.spatialEasing } }
         Behavior on scale { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing } }
+    }
+
+    Behavior on animatedCenter {
+        enabled: root.positionAnimationEnabled
+        NumberAnimation { duration: root.motion.normal; easing.type: root.motion.emphasizedEasing }
     }
 
     Timer {
