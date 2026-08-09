@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if pgrep -u "$UID" -x qs >/dev/null; then
+  qs ipc call shell quit >/dev/null 2>&1 || true
+  sleep 0.4
+  pkill -u "$UID" -x qs 2>/dev/null || true
+else
+  uwsm app -- qs >/dev/null 2>&1 &
+fi
