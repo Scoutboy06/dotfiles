@@ -1,29 +1,43 @@
 monitor.alsa.rules = [
-  -- [RANK 1] Bluetooth Headphones
-  -- Matches any bluez output; priority 1500 ensures it wins over internal speakers.
+  # [RANK 1] Bluetooth Headphones
+  # Matches any bluez output; priority 1500 ensures it wins over internal speakers.
   {
     matches = [ { node.name = "~bluez_output.*" } ],
     actions = { update-props = { priority.session = 1500 } }
   },
 
-  -- [RANK 2] Wired Headphone Jack
-  -- Matches the specific HiFi Headphones sink often found on laptops.
+  # [RANK 2] Wired Headphone Jack
+  # Matches the specific HiFi Headphones sink often found on laptops.
   {
     matches = [ { node.name = "~alsa_output.*.HiFi__Headphones__sink"} ],
     actions = { update-props = { priority.session = 1400 } }
   },
 
-  -- [RANK 3] HDMI / DisplayPort Audio
-  -- Matches any HDMI or DP output; takes priority over laptop speakers when docked.
+  # [RANK 3] Logitech Z407
+  # Matches the Z407 USB digital stereo output used on the desktop.
+  {
+    matches = [ { node.name = "~alsa_output.usb-Logitech_Logi_Z407_.*" } ],
+    actions = { update-props = { priority.session = 1300 } }
+  },
+
+  # [RANK 4] HDMI / DisplayPort Audio
+  # Matches any HDMI or DP output; takes priority over laptop speakers when docked.
   {
     matches = [ { node.name = "~alsa_output.*.HDMI.*" } ],
     actions = { update-props = { priority.session = 1100 } }
   },
 
-  -- [RANK 4] Internal Laptop Speakers
-  -- Most devices default to 1000, but explicit setting ensures consistency.
+  # [RANK 5] Internal Laptop Speakers
+  # Most devices default to 1000, but explicit setting ensures consistency.
   {
     matches = [ { node.name = "~alsa_output.*.Speaker.*" } ],
     actions = { update-props = { priority.session = 1000 } }
+  },
+
+  # [RANK 6] Built-in Digital Audio
+  # Matches the desktop's built-in IEC958 output as a final fallback.
+  {
+    matches = [ { node.name = "~alsa_output.pci-0000_00_1f.3.iec958-stereo" } ],
+    actions = { update-props = { priority.session = 900 } }
   }
 ]
