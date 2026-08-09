@@ -67,7 +67,7 @@ PanelWindow {
                 theme: root.theme
                 motion: root.motion
                 text: "󰣇"
-                textColor: root.theme.accent
+                textColor: root.theme.foreground
                 hoverEnabled: !root.popoutOpen
                 onClicked: Quickshell.execDetached(["omarchy-launch-walker"])
             }
