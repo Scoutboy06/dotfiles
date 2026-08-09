@@ -7,6 +7,7 @@ Rectangle {
     required property var theme
     required property var motion
     property bool hoverEnabled: true
+    signal activated
 
     readonly property bool active: workspace.active
     readonly property bool hovered: hoverEnabled && hover.hovered
@@ -34,7 +35,10 @@ Rectangle {
 
     TapHandler {
         id: tap
-        onTapped: root.workspace.activate()
+        onTapped: {
+            root.activated();
+            root.workspace.activate();
+        }
     }
 
     Behavior on x {

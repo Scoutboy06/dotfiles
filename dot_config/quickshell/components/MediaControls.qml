@@ -10,6 +10,7 @@ Item {
     property bool highlighted: false
     signal clicked(var anchor)
     signal hovered(var anchor)
+    signal transportClicked
 
     readonly property var player: media.player
 
@@ -28,7 +29,10 @@ Item {
             text: "󰒮"
             hoverEnabled: root.hoverEnabled
             visible: root.player?.canGoPrevious ?? false
-            onClicked: root.player.previous()
+            onClicked: {
+                root.transportClicked();
+                root.player.previous();
+            }
         }
 
         Rectangle {
@@ -61,7 +65,10 @@ Item {
             text: root.player?.isPlaying ? "󰏤" : "󰐊"
             hoverEnabled: root.hoverEnabled
             enabled: root.player?.canTogglePlaying ?? false
-            onClicked: root.player.togglePlaying()
+            onClicked: {
+                root.transportClicked();
+                root.player.togglePlaying();
+            }
         }
 
         ActionButton {
@@ -70,7 +77,10 @@ Item {
             text: "󰒭"
             hoverEnabled: root.hoverEnabled
             visible: root.player?.canGoNext ?? false
-            onClicked: root.player.next()
+            onClicked: {
+                root.transportClicked();
+                root.player.next();
+            }
         }
     }
 

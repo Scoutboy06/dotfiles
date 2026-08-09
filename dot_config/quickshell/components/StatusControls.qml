@@ -15,6 +15,7 @@ Row {
     signal bluetoothHovered(var anchor)
     signal networkClicked(var anchor)
     signal networkHovered(var anchor)
+    signal powerClicked
 
     spacing: 2
 
@@ -53,6 +54,9 @@ Row {
     ActionButton {
         theme: root.theme; motion: root.motion; text: "󰐥"; textColor: root.theme.foreground
         hoverEnabled: root.activePanel === ""
-        onClicked: root.run("omarchy-menu system")
+        onClicked: {
+            root.powerClicked();
+            root.run("omarchy-menu system");
+        }
     }
 }

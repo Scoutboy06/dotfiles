@@ -8,6 +8,7 @@ Row {
     required property var theme
     required property var motion
     property bool hoverEnabled: true
+    signal workspaceActivated
 
     spacing: 6
 
@@ -23,6 +24,7 @@ Row {
             theme: root.theme
             motion: root.motion
             hoverEnabled: root.hoverEnabled
+            onActivated: root.workspaceActivated()
         }
     }
 }

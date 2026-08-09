@@ -1,18 +1,24 @@
+import Quickshell
 import Quickshell.Services.SystemTray
 import Quickshell.Widgets
 import QtQuick
 
 Row {
     id: root
+
     required property var theme
     required property var motion
     property bool hoverEnabled: true
+    signal activated
+    signal menuRequested(var menu, var anchor)
+
     spacing: 3
 
     Repeater {
         model: SystemTray.items
 
         delegate: Rectangle {
+            id: trayItem
             required property var modelData
             width: 24
             height: 24
@@ -21,18 +27,32 @@ Row {
 
             IconImage {
                 anchors.centerIn: parent
-                implicitSize: 16
-                source: modelData.icon
+                implicitSize: 14
+                source: trayItem.modelData.icon
             }
 
             HoverHandler { id: hover }
             TapHandler {
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onTapped: eventPoint => {
-                    if (eventPoint.event.button === Qt.RightButton)
-                        modelData.secondaryActivate();
-                    else
-                        modelData.activate();
+                acceptedButtons: Qt.LeftButton
+                onSingleTapped: root.activated()
+                onDoubleTapped: {
+                    root.activated();
+                    trayItem.modelData.activate();
+                    const pattern = trayItem.modelData.title || trayItem.modelData.id;
+                    if (pattern)
+                        Quickshell.execDetached(["sh", "-c", "sleep 0.15; exec omarchy-launch-or-focus \"$1\" true", "tray-focus", pattern]);
+                }
+            }
+
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: {
+                    if (trayItem.modelData.menu)
+                        root.menuRequested(trayItem.modelData.menu, trayItem);
+                    else {
+                        root.activated();
+                        trayItem.modelData.secondaryActivate();
+                    }
                 }
             }
 

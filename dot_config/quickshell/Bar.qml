@@ -20,11 +20,18 @@ PanelWindow {
     property bool shown: false
     readonly property bool popoutOpen: popupState.activeScreen === screen && popupState.activePanel !== ""
 
+    function dismissPopups() {
+        popupState.activePanel = "";
+        popupState.activeScreen = null;
+        trayMenu.dismiss();
+    }
+
     function requestedCenter(anchor) {
         return anchor.mapToItem(panel, anchor.width / 2, 0).x + panel.x;
     }
 
     function togglePanel(panelName, anchor) {
+        trayMenu.dismiss();
         if (popupState.activeScreen === screen && popupState.activePanel === panelName) {
             popupState.activePanel = "";
             popupState.activeScreen = null;
@@ -71,7 +78,10 @@ PanelWindow {
                 text: "󰣇"
                 textColor: root.theme.foreground
                 hoverEnabled: !root.popoutOpen
-                onClicked: Quickshell.execDetached(["omarchy-launch-walker"])
+                onClicked: {
+                    root.dismissPopups();
+                    Quickshell.execDetached(["omarchy-launch-walker"]);
+                }
             }
 
             WorkspaceList {
@@ -80,6 +90,7 @@ PanelWindow {
                 theme: root.theme
                 motion: root.motion
                 hoverEnabled: !root.popoutOpen
+                onWorkspaceActivated: root.dismissPopups()
             }
         }
 
@@ -96,6 +107,7 @@ PanelWindow {
                 hoverEnabled: !root.popoutOpen
                 onClicked: anchor => root.togglePanel("media", anchor)
                 onHovered: anchor => root.hoverPanel("media", anchor)
+                onTransportClicked: root.dismissPopups()
             }
 
             SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -117,7 +129,18 @@ PanelWindow {
             anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
             spacing: 3
 
-            SystemTray { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion; hoverEnabled: !root.popoutOpen }
+            SystemTray {
+                anchors.verticalCenter: parent.verticalCenter
+                theme: root.theme
+                motion: root.motion
+                hoverEnabled: !root.popoutOpen
+                onActivated: root.dismissPopups()
+                onMenuRequested: (menu, anchor) => {
+                    root.popupState.activePanel = "";
+                    root.popupState.activeScreen = null;
+                    trayMenu.showMenu(menu, root.requestedCenter(anchor));
+                }
+            }
             NotificationCenter {
                 anchors.verticalCenter: parent.verticalCenter
                 theme: root.theme
@@ -143,7 +166,14 @@ PanelWindow {
                 onBluetoothHovered: anchor => root.hoverPanel("bluetooth", anchor)
                 onNetworkClicked: anchor => root.togglePanel("network", anchor)
                 onNetworkHovered: anchor => root.hoverPanel("network", anchor)
+                onPowerClicked: root.dismissPopups()
             }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            z: -1
+            onClicked: root.dismissPopups()
         }
 
         Behavior on y {
@@ -153,6 +183,13 @@ PanelWindow {
             NumberAnimation { duration: root.motion.fast; easing.type: root.motion.spatialEasing }
         }
         Behavior on color { ColorAnimation { duration: root.motion.normal } }
+    }
+
+    TrayMenuHost {
+        id: trayMenu
+        screen: root.screen
+        theme: root.theme
+        motion: root.motion
     }
 
     PopoutHost {
