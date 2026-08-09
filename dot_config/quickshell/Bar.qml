@@ -13,6 +13,7 @@ PanelWindow {
     required property var audio
     required property var bluetooth
     required property var network
+    required property var media
     required property var popupState
     property bool exiting: false
     property bool shown: false
@@ -89,7 +90,11 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 theme: root.theme
                 motion: root.motion
+                media: root.media
+                highlighted: root.popupState.activeScreen === root.screen && root.popupState.activePanel === "media"
                 hoverEnabled: !root.popoutOpen
+                onClicked: anchor => root.togglePanel("media", anchor)
+                onHovered: anchor => root.hoverPanel("media", anchor)
             }
 
             SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -147,6 +152,7 @@ PanelWindow {
         audio: root.audio
         bluetooth: root.bluetooth
         network: root.network
+        media: root.media
         activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
         requestedCenter: root.popupState.requestedCenter
         onDismissRequested: {

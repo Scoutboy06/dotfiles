@@ -10,6 +10,7 @@ PanelWindow {
     required property var audio
     required property var bluetooth
     required property var network
+    required property var media
     property string activePanel: ""
     property string displayedPanel: "audio"
     property real requestedCenter: width / 2
@@ -18,7 +19,7 @@ PanelWindow {
     signal dismissRequested
 
     readonly property bool open: activePanel !== ""
-    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : displayedPanel === "network" ? networkPanel : calendarPanel
+    readonly property Item activeItem: displayedPanel === "audio" ? audioPanel : displayedPanel === "bluetooth" ? bluetoothPanel : displayedPanel === "network" ? networkPanel : displayedPanel === "calendar" ? calendarPanel : mediaPanel
 
     visible: true
     anchors { top: true; bottom: true; left: true; right: true }
@@ -133,6 +134,20 @@ PanelWindow {
             opacity: root.open && root.displayedPanel === "calendar" ? 1 : 0
             y: root.open && root.displayedPanel === "calendar" ? 0 : -6
             enabled: root.open && root.displayedPanel === "calendar"
+
+            Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
+            Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
+        }
+
+        MediaPopout {
+            id: mediaPanel
+            anchors.fill: parent
+            media: root.media
+            theme: root.theme
+            motion: root.motion
+            opacity: root.open && root.displayedPanel === "media" ? 1 : 0
+            y: root.open && root.displayedPanel === "media" ? 0 : -6
+            enabled: root.open && root.displayedPanel === "media"
 
             Behavior on opacity { NumberAnimation { duration: root.motion.fast } }
             Behavior on y { NumberAnimation { duration: root.motion.normal; easing.type: root.motion.spatialEasing } }
