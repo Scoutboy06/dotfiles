@@ -14,6 +14,7 @@ ShellRoot {
     readonly property alias bluetoothService: bluetooth
     readonly property alias networkService: network
     readonly property alias mediaService: media
+    readonly property alias notificationService: notifications
     readonly property alias sharedPopupState: popupState
 
     Theme { id: theme }
@@ -22,6 +23,7 @@ ShellRoot {
     BluetoothService { id: bluetooth }
     NetworkService { id: network }
     MediaService { id: media }
+    NotificationService { id: notifications }
 
     QtObject {
         id: popupState
@@ -43,6 +45,7 @@ ShellRoot {
                 bluetooth: root.bluetoothService
                 network: root.networkService
                 media: root.mediaService
+                notifications: root.notificationService
                 popupState: root.sharedPopupState
                 exiting: root.exiting
             }

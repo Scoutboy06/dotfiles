@@ -14,6 +14,7 @@ PanelWindow {
     required property var bluetooth
     required property var network
     required property var media
+    required property var notifications
     required property var popupState
     property bool exiting: false
     property bool shown: false
@@ -117,7 +118,16 @@ PanelWindow {
             spacing: 3
 
             SystemTray { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion; hoverEnabled: !root.popoutOpen }
-            NotificationCenter { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; theme: root.theme; motion: root.motion; hoverEnabled: !root.popoutOpen }
+            NotificationCenter {
+                anchors.verticalCenter: parent.verticalCenter
+                theme: root.theme
+                motion: root.motion
+                notifications: root.notifications
+                active: root.popupState.activeScreen === root.screen && root.popupState.activePanel === "notifications"
+                hoverEnabled: !root.popoutOpen
+                onNotificationClicked: anchor => root.togglePanel("notifications", anchor)
+                onNotificationHovered: anchor => root.hoverPanel("notifications", anchor)
+            }
             BatteryStatus { anchors.verticalCenter: parent.verticalCenter; theme: root.theme; motion: root.motion }
             StatusControls {
                 anchors.verticalCenter: parent.verticalCenter
@@ -153,6 +163,7 @@ PanelWindow {
         bluetooth: root.bluetooth
         network: root.network
         media: root.media
+        notifications: root.notifications
         activePanel: root.popupState.activeScreen === root.screen ? root.popupState.activePanel : ""
         requestedCenter: root.popupState.requestedCenter
         onDismissRequested: {
