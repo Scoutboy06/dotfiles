@@ -134,29 +134,6 @@ PanelWindow {
             spacing: 6
 
             Rectangle {
-                visible: root.media.player !== null
-                width: visible ? mediaControls.implicitWidth + 12 : 0
-                height: parent.height
-                radius: 8
-                color: root.theme.barBackground
-
-                MediaControls {
-                    id: mediaControls
-                    anchors.centerIn: parent
-                    theme: root.theme
-                    motion: root.motion
-                    media: root.media
-                    highlighted: root.popupState.activeScreen === root.screen && root.popupState.activePanel === "media"
-                    hoverEnabled: !root.popoutOpen
-                    onClicked: anchor => root.togglePanel("media", anchor)
-                    onHovered: anchor => root.hoverPanel("media", anchor)
-                    onTransportClicked: root.dismissPopups()
-                }
-
-                Behavior on color { ColorAnimation { duration: root.motion.normal } }
-            }
-
-            Rectangle {
                 width: clockButton.implicitWidth + 12
                 height: parent.height
                 radius: 8
@@ -180,17 +157,44 @@ PanelWindow {
             }
         }
 
-        Rectangle {
+        Row {
             anchors.right: parent.right
-            width: rightControls.implicitWidth + 12
             height: parent.height
-            radius: 8
-            color: root.theme.barBackground
+            spacing: 6
 
-            Row {
-                id: rightControls
-                anchors.centerIn: parent
-                spacing: 3
+            Rectangle {
+                visible: root.media.player !== null
+                width: visible ? mediaControls.implicitWidth + 12 : 0
+                height: parent.height
+                radius: 8
+                color: root.theme.barBackground
+
+                MediaControls {
+                    id: mediaControls
+                    anchors.centerIn: parent
+                    theme: root.theme
+                    motion: root.motion
+                    media: root.media
+                    highlighted: root.popupState.activeScreen === root.screen && root.popupState.activePanel === "media"
+                    hoverEnabled: !root.popoutOpen
+                    onClicked: anchor => root.togglePanel("media", anchor)
+                    onHovered: anchor => root.hoverPanel("media", anchor)
+                    onTransportClicked: root.dismissPopups()
+                }
+
+                Behavior on color { ColorAnimation { duration: root.motion.normal } }
+            }
+
+            Rectangle {
+                width: rightControls.implicitWidth + 12
+                height: parent.height
+                radius: 8
+                color: root.theme.barBackground
+
+                Row {
+                    id: rightControls
+                    anchors.centerIn: parent
+                    spacing: 3
 
                 SystemTray {
                     anchors.verticalCenter: parent.verticalCenter
@@ -235,9 +239,10 @@ PanelWindow {
                     onPowerClicked: anchor => root.togglePanel("power", anchor)
                     onPowerHovered: anchor => root.hoverPanel("power", anchor)
                 }
-            }
+                }
 
-            Behavior on color { ColorAnimation { duration: root.motion.normal } }
+                Behavior on color { ColorAnimation { duration: root.motion.normal } }
+            }
         }
 
         MouseArea {
