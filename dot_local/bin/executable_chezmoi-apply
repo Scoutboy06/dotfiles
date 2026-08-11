@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+modified=()
+while IFS= read -r line; do
+  [[ ${line:0:1} == M ]] && modified+=("${line:3}")
+done < <(chezmoi status --path-style absolute)
+
+for path in "${modified[@]}"; do
+  action=$(gum choose --header "Locally modified: $path" \
+    "Merge into dotfiles" \
+    "Skip" \
+    "Quit")
+
+  case $action in
+    "Merge into dotfiles") chezmoi merge "$path" ;;
+    "Skip") ;;
+    "Quit") exit 0 ;;
+  esac
+done
+
+chezmoi diff
+
+gum confirm "Apply these changes?" && chezmoi apply "$@"
