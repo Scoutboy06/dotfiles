@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+omarchy-toggle quickshell-off || true
+
 if pgrep -u "$UID" -x qs >/dev/null; then
   qs ipc call shell quit >/dev/null 2>&1 || true
   sleep 0.4
