@@ -10,6 +10,7 @@ QtObject {
     property bool manuallySelected: false
     property var playerPositions: ({})
     property var pendingPlayer: null
+    property bool detailsVisible: false
 
     function hasPlayableMedia(candidate) {
         return candidate.isPlaying
@@ -110,7 +111,9 @@ QtObject {
     }
 
     property Timer playingPlayerTimer: Timer {
-        interval: 500
+        // The popout has its own smooth local position timer. In the background
+        // this only needs to notice player/playing-state changes promptly.
+        interval: root.detailsVisible ? 500 : 2000
         running: true
         repeat: true
         triggeredOnStart: true

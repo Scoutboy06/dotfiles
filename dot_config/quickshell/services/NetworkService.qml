@@ -15,6 +15,7 @@ QtObject {
     property string wifiAddress: ""
     property string connectedSsid: ""
     property string changingNetwork: ""
+    property bool detailsVisible: false
 
     function refresh() {
         if (!state.running)
@@ -74,8 +75,10 @@ QtObject {
         }
     }
 
+    onDetailsVisibleChanged: if (detailsVisible) refresh()
+
     property Timer refreshTimer: Timer {
-        interval: 4000
+        interval: root.detailsVisible ? 4000 : 15000
         running: true
         repeat: true
         triggeredOnStart: true

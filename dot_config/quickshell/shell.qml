@@ -24,10 +24,19 @@ ShellRoot {
     Motion { id: motion }
     Audio { id: audio }
     BluetoothService { id: bluetooth }
-    NetworkService { id: network }
-    MediaService { id: media }
+    NetworkService {
+        id: network
+        detailsVisible: popupState.activePanel === "network"
+    }
+    MediaService {
+        id: media
+        detailsVisible: popupState.activePanel === "media"
+    }
     NotificationService { id: notifications }
-    PowerService { id: power }
+    PowerService {
+        id: power
+        detailsVisible: popupState.activePanel === "power"
+    }
     HyprAnimationService { id: hyprAnimations }
 
     QtObject {

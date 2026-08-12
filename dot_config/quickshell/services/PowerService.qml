@@ -7,6 +7,7 @@ QtObject {
 
     property bool suspendAvailable: true
     property bool hibernateAvailable: false
+    property bool detailsVisible: false
 
     function refresh() {
         if (!suspendCheck.running)
@@ -30,6 +31,7 @@ QtObject {
     }
 
     Component.onCompleted: refresh()
+    onDetailsVisibleChanged: if (detailsVisible) refresh()
 
     property Process suspendProcess: Process {
         id: suspendCheck
@@ -43,10 +45,4 @@ QtObject {
         onExited: exitCode => root.hibernateAvailable = exitCode === 0
     }
 
-    property Timer refreshTimer: Timer {
-        interval: 30000
-        running: true
-        repeat: true
-        onTriggered: root.refresh()
-    }
 }
