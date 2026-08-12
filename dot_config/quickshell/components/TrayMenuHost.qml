@@ -40,7 +40,7 @@ PanelWindow {
         closeTimer.restart();
     }
 
-    visible: true
+    visible: rendered
     anchors { top: true; bottom: true; left: true; right: true }
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top
