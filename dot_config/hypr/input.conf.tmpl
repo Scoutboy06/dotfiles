@@ -14,8 +14,8 @@ input {
   # To swap Caps Lock and Escape:
   # kb_options = caps:swapescape
 {{- if .isDesktop }}
-  # Desktop: Caps Lock becomes additional Super key (since physical Super is broken)
-  kb_options = caps:super
+  # Desktop: Caps Lock becomes an additional Escape key
+  kb_options = caps:escape
 {{- else if .isLaptop }}
   # Laptop: Use compose (original behavior)
   kb_options = compose:caps
