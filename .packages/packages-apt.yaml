@@ -8,6 +8,27 @@
 # device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
+- name: build-essential
+  device: all
+  environment: dev
+- name: curl
+  device: all
+  environment: dev
+- name: fd-find
+  device: all
+  environment: dev
+- name: git
+  device: all
+  environment: dev
+- name: neovim
+  device: all
+  environment: dev
+- name: ripgrep
+  device: all
+  environment: dev
+- name: unzip
+  device: all
+  environment: dev
 - name: starship
   device: all
   environment: dev

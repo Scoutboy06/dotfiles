@@ -8,6 +8,21 @@
 # device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
+- name: BurntSushi.ripgrep.MSVC
+  device: all
+  environment: dev
+- name: Git.Git
+  device: all
+  environment: dev
+- name: JesseDuffield.lazygit
+  device: all
+  environment: dev
+- name: Neovim.Neovim
+  device: all
+  environment: dev
+- name: sharkdp.fd
+  device: all
+  environment: dev
 - name: Oven-sh.Bun
   device: all
   environment: dev

@@ -12,6 +12,10 @@ __pycache__/
 .config/systemd/user/timers.target.wants/
 
 # Machine-specific ignores
+{{ if not .isOmarchy }}
+.config/nvim/lua/plugins/theme.lua
+{{ end }}
+
 {{ if not .isLaptop }}
 # Desktop doesn't need laptop-specific configs
 .config/eduroam/

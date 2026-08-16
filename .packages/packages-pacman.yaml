@@ -26,10 +26,16 @@ packages:
 - name: chezmoi
   device: all
   environment: dev
+- name: curl
+  device: all
+  environment: dev
 - name: direnv
   device: all
   environment: dev
 - name: eza
+  device: all
+  environment: dev
+- name: fd
   device: all
   environment: dev
 - name: ffmpeg
@@ -44,6 +50,12 @@ packages:
 - name: fzf
   device: all
   environment: dev
+- name: gcc
+  device: all
+  environment: dev
+- name: git
+  device: all
+  environment: dev
 - name: github-cli
   device: all
   environment: dev
@@ -53,7 +65,13 @@ packages:
 - name: kdeconnect
   device: all
   environment: desktop
+- name: lazygit
+  device: all
+  environment: dev
 - name: nano
+  device: all
+  environment: dev
+- name: neovim
   device: all
   environment: dev
 - name: ntfs-3g
@@ -81,6 +99,9 @@ packages:
   device: all
   environment: dev
 - name: python-ruamel-yaml
+  device: all
+  environment: dev
+- name: ripgrep
   device: all
   environment: dev
 - name: shotcut
@@ -135,6 +156,9 @@ packages:
   device: all
   environment: dev
 - name: tree
+  device: all
+  environment: dev
+- name: unzip
   device: all
   environment: dev
 - name: ttf-firacode-nerd
