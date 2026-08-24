@@ -69,6 +69,8 @@ Item {
   property color barForeground: useTransparentForeground ? transparentForeground : themeForeground
   property bool foregroundAnimationEnabled: true
   property color background: Color.bar.background
+  property string islandBackgroundOverride: ""
+  readonly property color islandBackground: islandBackgroundOverride !== "" ? islandBackgroundOverride : background
   property color urgent: Color.bar.active
 
   Behavior on barForeground { enabled: root.foregroundAnimationEnabled; ColorAnimation { duration: 420; easing.type: Easing.InOutCubic } }
@@ -328,7 +330,9 @@ Item {
 
   readonly property bool vertical: position === "left" || position === "right"
   readonly property bool islandsEnabled: islandMode && !vertical
-  readonly property int barSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
+  readonly property int stockBarSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
+  readonly property int barSize: stockBarSize + (islandsEnabled ? Style.space(4) : 0)
+  readonly property int islandInset: islandsEnabled ? Style.space(2) : 0
 
   function normalizePosition(value) {
     return BarModel.normalizePosition(value)
@@ -872,11 +876,35 @@ Item {
     }
   }
 
+  function loadIslandThemeColors(raw) {
+    root.islandBackgroundOverride = ""
+    var lines = String(raw || "").split("\n")
+    for (var i = 0; i < lines.length; i++) {
+      var match = lines[i].match(/^\s*bar_island_background\s*=\s*["'](#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?)["']\s*(?:#.*)?$/)
+      if (!match) continue
+      root.islandBackgroundOverride = match[1]
+      return
+    }
+  }
+
+  FileView {
+    id: islandThemeColors
+    path: root.stateHome + "/omarchy/current/theme/colors.toml"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.loadIslandThemeColors(text())
+    onFileChanged: reload()
+    onLoadFailed: root.islandBackgroundOverride = ""
+  }
+
   FileView {
     path: root.stateHome + "/omarchy/current"
     watchChanges: true
     printErrors: false
-    onFileChanged: root.scheduleTransparentForegroundRefresh()
+    onFileChanged: {
+      root.scheduleTransparentForegroundRefresh()
+      islandThemeColors.reload()
+    }
   }
 
   function runProcess(process) {
@@ -1124,7 +1152,7 @@ Item {
         HorizontalSectionIsland {
           entries: root.layoutEntries("right")
           region: "right"
-          leadingPadding: 12
+          leadingPadding: 4
           trailingPadding: 6
           anchors.right: parent.right
           anchors.rightMargin: Style.space(8)
@@ -1316,12 +1344,12 @@ Item {
         BorderSurface {
           visible: root.islandsEnabled
           x: centerRoot.hasAnchor ? beforeAnchorModules.x - Style.space(4) : centeredModules.x - Style.space(4)
-          y: Style.space(4)
+          y: root.islandInset
           width: centerRoot.hasAnchor
-            ? afterAnchorModules.x + afterAnchorModules.width - beforeAnchorModules.x + Style.space(16)
-            : centeredModules.width + Style.space(16)
-          height: Math.max(0, parent.height - y)
-          color: root.background
+            ? afterAnchorModules.x + afterAnchorModules.width - beforeAnchorModules.x + Style.space(8)
+            : centeredModules.width + Style.space(8)
+          height: Math.max(0, parent.height - root.islandInset * 2)
+          color: root.islandBackground
           radius: Math.min(Style.space(8), height / 2)
         }
 
@@ -1337,7 +1365,6 @@ Item {
           entries: centerRoot.entries
           region: "center"
           anchors.centerIn: parent
-          anchors.verticalCenterOffset: root.islandsEnabled ? Style.space(3) : 0
         }
 
         ModuleList {
@@ -1355,7 +1382,6 @@ Item {
           entry: centerRoot.anchorEntry
           region: "center"
           anchors.centerIn: parent
-          anchors.verticalCenterOffset: root.islandsEnabled ? Style.space(3) : 0
         }
 
         ModuleList {
@@ -1513,9 +1539,10 @@ Item {
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.top: parent.top
-      anchors.topMargin: Style.space(4)
+      anchors.topMargin: root.islandInset
       anchors.bottom: parent.bottom
-      color: root.background
+      anchors.bottomMargin: root.islandInset
+      color: root.islandBackground
       radius: Math.min(Style.space(8), height / 2)
     }
 
@@ -1526,7 +1553,6 @@ Item {
       anchors.left: parent.left
       anchors.leftMargin: sectionIsland.effectiveLeadingPadding
       anchors.verticalCenter: parent.verticalCenter
-      anchors.verticalCenterOffset: root.islandsEnabled ? Style.space(3) : 0
     }
   }
 
