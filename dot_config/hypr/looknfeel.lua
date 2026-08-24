@@ -17,3 +17,6 @@ hl.config({
     rounding = 8,
   },
 })
+
+-- Keep the focused window fully opaque while retaining inactive transparency.
+o.window({ focus = true }, { opacity = "1 override" })
