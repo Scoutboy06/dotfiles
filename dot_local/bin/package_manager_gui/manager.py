@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -239,8 +240,8 @@ class PackageManager:
         """Load omarchy packages and return them as ignored sets.
         
         Reads package names from:
-        - ~/.local/share/omarchy/install/omarchy-base.packages
-        - ~/.local/share/omarchy/install/omarchy-other.packages
+        - $OMARCHY_PATH/install/omarchy-base.packages
+        - $OMARCHY_PATH/install/omarchy-other.packages
         
         Returns:
             Tuple of (omarchy_pacman_names, omarchy_aur_names) where all packages
@@ -250,7 +251,7 @@ class PackageManager:
             If files don't exist, returns empty sets silently.
         """
         omarchy_packages: set[str] = set()
-        base_dir = Path.home() / ".local" / "share" / "omarchy" / "install"
+        base_dir = Path(os.environ.get("OMARCHY_PATH", "/usr/share/omarchy")) / "install"
         
         for filename in ["omarchy-base.packages", "omarchy-other.packages"]:
             filepath = base_dir / filename
