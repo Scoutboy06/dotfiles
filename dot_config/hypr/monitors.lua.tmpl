@@ -1,0 +1,28 @@
+-- See https://wiki.hypr.land/Configuring/Basics/Monitors/
+-- List current monitors and supported modes with: hyprctl monitors all
+
+{{- if .isDesktop }}
+-- Desktop: 1080p secondary display on the left, 1440p primary display on the right.
+hl.env("GDK_SCALE", "1.25")
+hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@74.97", position = "0x0", scale = 1 })
+hl.monitor({ output = "DP-1", mode = "2560x1440@179.88", position = "1920x0", scale = 1.25 })
+
+-- Keep odd-numbered workspaces on the primary display and even-numbered
+-- workspaces on the secondary display.
+for workspace = 1, 10 do
+  hl.workspace_rule({
+    workspace = tostring(workspace),
+    monitor = workspace % 2 == 1 and "DP-1" or "HDMI-A-1",
+  })
+end
+{{- else if .isLaptop }}
+-- Laptop: use fractional scaling on the built-in display and auto-configure
+-- external displays at scale 1.
+hl.env("GDK_SCALE", "1.25")
+hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = {{ .monitorScale }} })
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+{{- else }}
+-- Fallback: auto-configure all monitors at scale 1.
+hl.env("GDK_SCALE", "1")
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+{{- end }}
