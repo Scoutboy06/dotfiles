@@ -43,7 +43,7 @@ Machine detection lives in `.chezmoi.toml.tmpl`, keyed on hostname:
 | `eliaslt` / `EliasLT` | Laptop | `.isLaptop` |
 | `HQ-LAP-103` | Work laptop | `.isWorkLaptop` |
 
-Other template variables available in `.tmpl` files: `.device`, `.isOmarchy`, `.hasDE` (false on WSL/servers), `.monitorScale`, `.primaryMonitor`, `.useHyprlockOnBoot`, `.editor`.
+Other template variables available in `.tmpl` files: `.device`, `.isOmarchy`, `.hasDE` (false on WSL/servers), `.monitorScale`, `.primaryMonitor`, `.editor`.
 
 Machine-specific file exclusions (e.g. laptop-only battery monitor, eduroam) are in `.chezmoiignore`.
 
@@ -77,7 +77,7 @@ The install scripts are `run_onchange_` — editing any package YAML re-runs the
 ## What's configured
 
 - **Shell**: zsh with starship, zoxide, fzf, direnv, eza
-- **Desktop**: Hyprland + waybar + idle locking, mostly templated per machine
+- **Desktop**: Omarchy 4 with Lua-based Hyprland configuration and the Omarchy shell
 - **Apps**: assorted configs under `dot_config/`
 - **Scripts**: Hyprland helpers and general utilities in `dot_local/bin/`
 - **Agent skills**: shared AI agent skills, symlinked into `~/.claude/skills`
