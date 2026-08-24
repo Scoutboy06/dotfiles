@@ -1337,6 +1337,7 @@ Item {
           entries: centerRoot.entries
           region: "center"
           anchors.centerIn: parent
+          anchors.verticalCenterOffset: root.islandsEnabled ? Style.space(3) : 0
         }
 
         ModuleList {
@@ -1354,6 +1355,7 @@ Item {
           entry: centerRoot.anchorEntry
           region: "center"
           anchors.centerIn: parent
+          anchors.verticalCenterOffset: root.islandsEnabled ? Style.space(3) : 0
         }
 
         ModuleList {
@@ -1524,6 +1526,7 @@ Item {
       anchors.left: parent.left
       anchors.leftMargin: sectionIsland.effectiveLeadingPadding
       anchors.verticalCenter: parent.verticalCenter
+      anchors.verticalCenterOffset: root.islandsEnabled ? Style.space(3) : 0
     }
   }
 
