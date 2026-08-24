@@ -19,7 +19,7 @@ apply_refresh_rate() {
     return 0
   fi
 
-  hyprctl keyword monitor "eDP-1,${target},auto,1.25"
+  hyprctl eval "hl.monitor({ output = \"eDP-1\", mode = \"${target}\", position = \"auto\", scale = 1.25 })"
 }
 
 apply_refresh_rate
