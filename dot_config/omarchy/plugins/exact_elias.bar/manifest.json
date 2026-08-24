@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "elias.bar",
+  "name": "Elias Islands Bar",
+  "version": "1.0.0",
+  "author": "Elias",
+  "description": "Omarchy bar with solid, rounded section islands",
+  "kinds": [
+    "bar"
+  ],
+  "entryPoints": {
+    "bar": "Bar.qml"
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.bar"
+  }
+}

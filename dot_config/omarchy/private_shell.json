@@ -1,5 +1,7 @@
 {
   "bar": {
+    "id": "elias.bar",
+    "islands": true,
     "centerAnchor": "omarchy.clock",
     "layout": {
       "center": [
