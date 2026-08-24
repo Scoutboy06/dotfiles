@@ -16,9 +16,6 @@
 {{- $isWSL := (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
 {{- $hasDE := or (eq .chezmoi.os "windows") $isOmarchy (and (not $isWSL) (not (eq $device "server"))) -}}
 
-{{- $forceUseHyprlockOnBoot := env "FORCE_HYPRLOCK_ON_BOOT" | eq "true" -}}
-{{- $useHyprlockOnBoot := or $forceUseHyprlockOnBoot (and $isDesktop $isOmarchy) -}}
-
 sourceDir = "/home/elias/p/dotfiles"
 
 [data]
@@ -37,7 +34,6 @@ sourceDir = "/home/elias/p/dotfiles"
   monitorScale = 1.25
   primaryMonitor = "eDP-1"
 {{- end }}
-  useHyprlockOnBoot = {{ $useHyprlockOnBoot }}
   editor = "zeditor"
 
 [diff]
