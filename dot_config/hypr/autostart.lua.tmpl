@@ -1,0 +1,10 @@
+-- Personal startup entries loaded after Omarchy's defaults.
+
+hl.env("EDITOR", {{ .editor | quote }})
+
+o.exec_on_start("check-status")
+o.exec_on_start("check-agents-sync")
+o.launch_on_start("bitwarden")
+o.launch_on_start("syncthing --no-browser")
+
+-- o.launch_on_start("voxtype daemon")
