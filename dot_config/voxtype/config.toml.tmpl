@@ -54,10 +54,9 @@ model = "small"
 model = "large-v3-turbo"
 {{- end }}
 
-# Language for transcription
-# Use "en" for English, "auto" for auto-detection
+# Constrain auto-detection to the languages used for dictation.
 # See: https://github.com/openai/whisper#available-models-and-languages
-language = "auto"
+language = ["en", "sv"]
 
 # Translate non-English speech to English
 translate = false
