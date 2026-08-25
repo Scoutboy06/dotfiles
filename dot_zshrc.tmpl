@@ -163,49 +163,49 @@ o() {
   op run --env-file=.env -- "$@"
 }
 
-BW_CACHE_DIR="/dev/shm/bw-${UID}"
-BW_SESSION_CACHE="$BW_CACHE_DIR/session"
-export BW_LOOKUP_CACHE="$BW_CACHE_DIR/lookup-ids"
-export BW_VALUE_CACHE="$BW_CACHE_DIR/resolved-values"
-if [[ ! -d "$BW_CACHE_DIR" ]]; then
-  mkdir -m 700 -p "$BW_CACHE_DIR"
-fi
-chmod 700 "$BW_CACHE_DIR"
-if [[ -r "$BW_SESSION_CACHE" ]]; then
-  export BW_SESSION="$(<"$BW_SESSION_CACHE")"
-fi
+# Bitwarden: the session lives in a tmpfs cache, never in the shell environment.
+typeset -g BW_CACHE_DIR="/dev/shm/bw-${UID}"
+typeset -g BW_SESSION_CACHE="$BW_CACHE_DIR/session"
+typeset -g BW_LOOKUP_CACHE="$BW_CACHE_DIR/lookup-ids"
+typeset -g BW_VALUE_CACHE="$BW_CACHE_DIR/resolved-values"
+[[ -d "$BW_CACHE_DIR" ]] || mkdir -m 700 -p -- "$BW_CACHE_DIR"
+chmod 700 -- "$BW_CACHE_DIR"
 
 bw() {
+  local session=''
+  [[ -r "$BW_SESSION_CACHE" ]] && session="$(<"$BW_SESSION_CACHE")"
+
+  # BW_SESSION is passed to this one process only; it never enters the shell env.
+  local -a run=(command bw)
+  [[ -n "$session" ]] && run=(env "BW_SESSION=$session" bw)
+
   case "$1" in
     unlock)
-      local session
       session=$(command bw unlock --raw "${@:2}") || return 1
       (umask 077; print -rn -- "$session" >| "$BW_SESSION_CACHE")
-      chmod 600 "$BW_SESSION_CACHE"
+      chmod 600 -- "$BW_SESSION_CACHE"
       rm -f -- "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
-      export BW_SESSION="$session"
-      echo 'Bitwarden vault unlocked for this WSL session.'
+      print 'Bitwarden vault unlocked for this WSL session.'
       ;;
     cache)
       if [[ "$2" == reset && $# -eq 2 ]]; then
         rm -f -- "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
-        echo 'Bitwarden caches reset.'
+        print 'Bitwarden caches reset.'
       else
-        echo 'Usage: bw cache reset' >&2
+        print -u2 'Usage: bw cache reset'
         return 1
       fi
       ;;
     lock|logout)
       rm -f -- "$BW_SESSION_CACHE" "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
-      unset BW_SESSION
-      command bw "$@"
+      "${run[@]}" "$@"
       ;;
     sync)
       rm -f -- "$BW_LOOKUP_CACHE" "$BW_VALUE_CACHE"
-      command bw "$@"
+      "${run[@]}" "$@"
       ;;
     *)
-      command bw "$@"
+      "${run[@]}" "$@"
       ;;
   esac
 }
