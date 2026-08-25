@@ -36,10 +36,6 @@ sourceDir = "/home/elias/p/dotfiles"
 {{- end }}
   editor = "zeditor"
 
-[diff]
-command = "zeditor"
-args = ["--wait", "--diff", {{ printf "%q" "{{ .Destination }}" }}, {{ printf "%q" "{{ .Target }}" }}]
-
 [merge]
 command = "bash"
 args = [
