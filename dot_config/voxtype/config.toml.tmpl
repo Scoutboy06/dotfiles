@@ -61,8 +61,8 @@ language = ["en", "sv"]
 # Translate non-English speech to English
 translate = false
 
-# Bias Whisper toward frequently dictated technical terms and preferred casing.
-initial_prompt = "Voxtype, Omarchy, Hyprland, Wayland, Quickshell, chezmoi, dotfiles, Vulkan, CUDA, GitHub, Zed, Codex."
+# Bias Whisper toward the remaining difficult technical term.
+initial_prompt = "Hyprland."
 
 # Number of CPU threads for inference (omit for auto-detection)
 # threads = 4
@@ -115,3 +115,6 @@ on_transcription = false
 #
 # Custom word replacements (case-insensitive)
 # replacements = { "hyperwhisper" = "hyprwhspr" }
+
+[text.replacements]
+"hyperland" = "Hyprland"
