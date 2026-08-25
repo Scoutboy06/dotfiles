@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+import json
+import sys
+
+{{ template "modifiers/jsonc.py" . }}
+
+desired_settings = json.loads(r'''{{ .zed.settings | toJson }}''')
+current = sys.stdin.read()
+sys.stdout.write(merge_jsonc(current, desired_settings))

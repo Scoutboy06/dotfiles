@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shared Zed settings data",
+  "type": "object",
+  "required": [
+    "$schema",
+    "zed"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "zed": {
+      "type": "object",
+      "required": [
+        "settings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "settings": {
+          "$ref": "#/$defs/settings"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "settings": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "project_panel": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "hide_root": {
+              "type": "boolean"
+            },
+            "bold_folder_labels": {
+              "type": "boolean"
+            }
+          }
+        },
+        "diff_view_style": {
+          "enum": [
+            "split",
+            "unified"
+          ]
+        },
+        "git": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "inline_blame": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "cli_default_open_behavior": {
+          "type": "string"
+        },
+        "edit_predictions": {
+          "type": "object"
+        },
+        "icon_theme": {
+          "type": "string"
+        },
+        "auto_install_extensions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "session": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "trust_all_worktrees": {
+              "type": "boolean"
+            }
+          }
+        },
+        "vim_mode": {
+          "type": "boolean"
+        },
+        "terminal": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "font_size": {
+              "type": "number"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_fallbacks": {
+              "$ref": "#/$defs/stringArray"
+            }
+          }
+        },
+        "base_keymap": {
+          "enum": [
+            "Atom",
+            "Cursor",
+            "Emacs",
+            "JetBrains",
+            "None",
+            "SublimeText",
+            "TextMate",
+            "VSCode",
+            "Zed"
+          ]
+        },
+        "multi_cursor_modifier": {
+          "type": "string"
+        },
+        "relative_line_numbers": {
+          "type": "string"
+        },
+        "sticky_scroll": {
+          "$ref": "#/$defs/enabledObject"
+        },
+        "gutter": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "line_numbers": {
+              "type": "boolean"
+            }
+          }
+        },
+        "minimap": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "show": {
+              "type": "string"
+            }
+          }
+        },
+        "cursor_blink": {
+          "type": "boolean"
+        },
+        "buffer_font_fallbacks": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "buffer_font_family": {
+          "type": "string"
+        },
+        "file_types": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/stringArray"
+          }
+        },
+        "linked_edits": {
+          "type": "boolean"
+        },
+        "tab_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ui_font_size": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "buffer_font_size": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "theme": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "status_bar": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "line_endings_button": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "enabledObject": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
