@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+import json
+import sys
+
+{{ template "modifiers/line_ini.py" . }}
+
+desired_defaults = json.loads(r'''{{ .mimeapps.defaults | toJson }}''')
+current = sys.stdin.read()
+sys.stdout.write(patch_ini_section(current, "Default Applications", desired_defaults))

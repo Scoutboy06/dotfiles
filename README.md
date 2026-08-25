@@ -108,5 +108,6 @@ The install scripts are `run_onchange_` — editing any package YAML re-runs the
 ## Notes
 
 - Local zsh overrides go in `~/.zshrc.local` (not tracked).
+- `~/.config/mimeapps.list` is partially managed by `modify_mimeapps.list.tmpl`; edit its tracked defaults in `.chezmoidata/mimeapps.yaml`.
 - Merge conflicts open in VS Code via the custom `[merge]` command in `.chezmoi.toml.tmpl`.
 - Hyprland configs originally adapted from [Omarchy](https://github.com/basecamp/omarchy).
