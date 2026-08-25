@@ -1,0 +1,35 @@
+{
+  "extends": "default",
+  "meta": {
+    "name": "dotnet-dev",
+    "version": "2",
+    "description": ".NET SDK development profile with NuGet and template engine support"
+  },
+  "groups": {
+    "include": [
+      "linux_runtime_state",
+      "linux_temp_read"
+    ]
+  },
+  "filesystem": {
+    "allow": [
+      "$HOME/.dotnet",
+      "$HOME/.nuget",
+      "$HOME/.local/share/NuGet",
+      "$HOME/.templateengine"
+    ],
+    "read": [
+      "/proc",
+      "/proc/sys/vm/max_map_count",
+      "/proc/sys/vm/overcommit_memory",
+      "/tmp"
+    ]
+  },
+  "environment": {
+    "set_vars": {
+      "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+      "DOTNET_NOLOGO": "1",
+      "NUGET_SCRATCH": "/tmp/nuget-scratch"
+    }
+  }
+}

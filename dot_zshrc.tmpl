@@ -147,6 +147,14 @@ alias czd='chezmoi diff'
 alias cze='chezmoi edit'
 
 # Custom functions
+
+# make claude, opencode, pi, use nono sandbox by default if installed
+if [[ -z $NONO_CAP_FILE ]] && (( $+commands[nono] )); then
+  claude()   { nono wrap -s --allow-cwd -p nolabs-ai/claude   --extends dotnet-dev -- claude   "$@" }
+  opencode() { nono wrap -s --allow-cwd -p nolabs-ai/opencode --extends dotnet-dev -- opencode "$@" }
+  pi()       { nono wrap -s --allow-cwd -p nolabs-ai/pi       --extends dotnet-dev -- pi       "$@" }
+fi
+
 o() {
   if [[ ! -f .env ]]; then
     echo "❌ .env not found in $(pwd)"
