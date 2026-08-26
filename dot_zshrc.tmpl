@@ -116,6 +116,10 @@ if command -v zeditor &>/dev/null; then
 elif command -v zed &>/dev/null; then
   alias zeditor='zed'
 fi
+# Debian/Ubuntu ship bat as batcat (name clash with another package)
+if ! command -v bat &>/dev/null && command -v batcat &>/dev/null; then
+  alias bat='batcat'
+fi
 alias copy='wl-copy'
 alias paste='wl-paste'
 alias cc='claude'
