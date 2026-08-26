@@ -357,6 +357,32 @@ Item {
     return BarModel.pinTrayToInner(entries, section)
   }
 
+  // The stock tray keeps its fully expanded width reserved and only slides
+  // its glyphs inside that slot. That is invisible on a full-width bar, but
+  // an island would otherwise paint the reserved drawer as empty background.
+  // Keep the stock interaction geometry and trim only the island's leading
+  // edge by the portion of the drawer that is still concealed.
+  function concealedTrayExtent(sectionItem, entries, region) {
+    if (!islandsEnabled || vertical || region !== "right" || !entries || entries.length === 0)
+      return 0
+    if (entryId(entries[0]) !== "omarchy.tray") return 0
+
+    var sectionWindow = targetWindow(sectionItem)
+    for (var i = 0; i < moduleSlots.length; i++) {
+      var slot = moduleSlots[i]
+      if (!slot || slot.region !== region || slot.moduleName !== "omarchy.tray") continue
+      if (!sameWindow(slotWindow(slot), sectionWindow)) continue
+
+      var tray = slot.activeItem
+      if (!tray || !("drawerExtent" in tray) || !("revealExtent" in tray)) return 0
+      var drawerExtent = Number(tray.drawerExtent)
+      var revealExtent = Number(tray.revealExtent)
+      if (!isFinite(drawerExtent) || !isFinite(revealExtent)) return 0
+      return Math.max(0, drawerExtent - revealExtent)
+    }
+    return 0
+  }
+
   function applyBarConfig() {
     var config = Util.isPlainObject(barConfig) ? barConfig : fallbackBarConfig
 
@@ -1529,6 +1555,7 @@ Item {
     property int trailingPadding: 4
     readonly property int effectiveLeadingPadding: root.islandsEnabled ? Style.space(leadingPadding) : 0
     readonly property int effectiveTrailingPadding: root.islandsEnabled ? Style.space(trailingPadding) : 0
+    readonly property real concealedLeadingExtent: root.concealedTrayExtent(sectionIsland, entries, region)
 
     visible: entries.length > 0
     implicitWidth: sectionModules.width + effectiveLeadingPadding + effectiveTrailingPadding
@@ -1537,6 +1564,7 @@ Item {
     BorderSurface {
       visible: root.islandsEnabled
       anchors.left: parent.left
+      anchors.leftMargin: sectionIsland.concealedLeadingExtent
       anchors.right: parent.right
       anchors.top: parent.top
       anchors.topMargin: root.islandInset
