@@ -29,9 +29,6 @@ packages:
 - name: pomodoro-tui
   device: all
   environment: dev
-- name: quickshell
-  device: all
-  environment: desktop
 - name: r-quick-share-bin
   device: all
   environment: desktop

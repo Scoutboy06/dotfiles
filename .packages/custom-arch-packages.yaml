@@ -9,7 +9,4 @@
 #
 # environment accepts comma-separated lists (e.g., environment: desktop,dev).
 
-custom_packages:
-  - name: gitm
-    url: https://github.com/Scoutboy06/gitm.git
-    environment: dev
+custom_packages: []

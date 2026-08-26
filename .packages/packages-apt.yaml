@@ -8,34 +8,19 @@
 # device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
+- name: bat
+  device: all
+  environment: dev
 - name: build-essential
   device: all
   environment: dev
+- name: ca-certificates
+  device: all
+  environment: dev
+- name: cargo
+  device: all
+  environment: dev
 - name: curl
-  device: all
-  environment: dev
-- name: fd-find
-  device: all
-  environment: dev
-- name: git
-  device: all
-  environment: dev
-- name: neovim
-  device: all
-  environment: dev
-- name: ripgrep
-  device: all
-  environment: dev
-- name: unzip
-  device: all
-  environment: dev
-- name: starship
-  device: all
-  environment: dev
-- name: zoxide
-  device: all
-  environment: dev
-- name: fzf
   device: all
   environment: dev
 - name: direnv
@@ -44,6 +29,63 @@ packages:
 - name: eza
   device: all
   environment: dev
-- name: bat
+- name: fd-find
+  device: all
+  environment: dev
+- name: ffmpeg
+  device: all
+  environment: dev
+- name: fzf
+  device: all
+  environment: dev
+- name: gh
+  device: all
+  environment: dev
+- name: git
+  device: all
+  environment: dev
+- name: jq
+  device: all
+  environment: dev
+- name: neovim
+  device: all
+  environment: dev
+- name: openssh-client
+  device: all
+  environment: dev
+- name: python3
+  device: all
+  environment: dev
+- name: ripgrep
+  device: all
+  environment: dev
+- name: rustc
+  device: all
+  environment: dev
+- name: speedtest-cli
+  device: all
+  environment: dev
+- name: starship
+  device: all
+  environment: dev
+- name: syncthing
+  device: all
+  environment: dev
+- name: tree
+  device: all
+  environment: dev
+- name: unzip
+  device: all
+  environment: dev
+- name: yt-dlp
+  device: all
+  environment: dev
+- name: zip
+  device: all
+  environment: dev
+- name: zoxide
+  device: all
+  environment: dev
+- name: zsh
   device: all
   environment: dev

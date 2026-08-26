@@ -10,3 +10,5 @@
 [user]
 	name = Elias Wennerlund
 	email = elias06wennerlund@gmail.com
+[include]
+	path = ~/.config/git/config.local

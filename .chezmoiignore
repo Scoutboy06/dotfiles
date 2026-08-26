@@ -5,8 +5,8 @@ CODE.md
 session-*.md
 
 # Build artifacts
-__pycache__/
-*.pyc
+**/__pycache__/**
+**/*.pyc
 
 # Systemd timer symlinks (managed by systemd enable/disable)
 .config/systemd/user/timers.target.wants/

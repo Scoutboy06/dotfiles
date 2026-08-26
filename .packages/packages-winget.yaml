@@ -8,21 +8,84 @@
 # device and environment accept comma-separated lists (e.g., device: eliaspc,eliaslt).
 #
 packages:
+- name: ajeetdsouza.zoxide
+  device: all
+  environment: dev
+- name: Anki.Anki
+  device: all
+  environment: desktop
+- name: Bitwarden.Bitwarden
+  device: all
+  environment: desktop
+- name: Brave.Brave
+  device: all
+  environment: desktop
 - name: BurntSushi.ripgrep.MSVC
+  device: all
+  environment: dev
+- name: DBBrowserForSQLite.DBBrowserForSQLite
+  device: all
+  environment: desktop
+- name: direnv.direnv
+  device: all
+  environment: dev
+- name: eza-community.eza
   device: all
   environment: dev
 - name: Git.Git
   device: all
   environment: dev
+- name: GitHub.cli
+  device: all
+  environment: dev
+- name: Gyan.FFmpeg
+  device: all
+  environment: dev
 - name: JesseDuffield.lazygit
   device: all
   environment: dev
-- name: Neovim.Neovim
+- name: jqlang.jq
   device: all
   environment: dev
-- name: sharkdp.fd
+- name: junegunn.fzf
   device: all
   environment: dev
 - name: Oven-sh.Bun
   device: all
   environment: dev
+- name: Python.Python.3.13
+  device: all
+  environment: dev
+- name: sharkdp.bat
+  device: all
+  environment: dev
+- name: sharkdp.fd
+  device: all
+  environment: dev
+- name: Spotify.Spotify
+  device: all
+  environment: desktop
+- name: Starship.Starship
+  device: all
+  environment: dev
+- name: Tailscale.Tailscale
+  device: all
+  environment: dev
+- name: Vencord.Vesktop
+  device: all
+  environment: desktop
+- name: VideoLAN.VLC
+  device: all
+  environment: desktop
+- name: Xournal++.Xournal++
+  device: all
+  environment: desktop
+- name: yt-dlp.yt-dlp
+  device: all
+  environment: dev
+- name: ZedIndustries.Zed
+  device: all
+  environment: desktop
+- name: Zen-Team.Zen-Browser
+  device: all
+  environment: desktop

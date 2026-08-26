@@ -14,16 +14,28 @@ packages:
 - name: bacon
   device: all
   environment: dev
+- name: bat
+  device: all
+  environment: dev
 - name: biome
   device: all
   environment: dev
-- name: bun-bin
+- name: btop
+  device: all
+  environment: dev
+- name: bun
+  device: all
+  environment: dev
+- name: cargo-insta
   device: all
   environment: dev
 - name: cargo-nextest
   device: all
   environment: dev
 - name: chezmoi
+  device: all
+  environment: dev
+- name: csvlens
   device: all
   environment: dev
 - name: curl
@@ -62,6 +74,9 @@ packages:
 - name: gnome-disk-utility
   device: all
   environment: desktop
+- name: jq
+  device: all
+  environment: dev
 - name: kdeconnect
   device: all
   environment: desktop
@@ -89,6 +104,9 @@ packages:
 - name: partitionmanager
   device: all
   environment: desktop
+- name: python
+  device: all
+  environment: dev
 - name: python-markdownify
   device: all
   environment: dev
@@ -101,7 +119,13 @@ packages:
 - name: python-ruamel-yaml
   device: all
   environment: dev
+- name: quickshell
+  device: all
+  environment: desktop
 - name: ripgrep
+  device: all
+  environment: dev
+- name: rust
   device: all
   environment: dev
 - name: shotcut
@@ -164,6 +188,12 @@ packages:
 - name: ttf-firacode-nerd
   device: all
   environment: dev
+- name: uv
+  device: all
+  environment: dev
+- name: visual-studio-code-bin
+  device: all
+  environment: desktop
 - name: vlc
   device: all
   environment: desktop
@@ -173,6 +203,9 @@ packages:
 - name: winetricks
   device: all
   environment: desktop
+- name: wl-clipboard
+  device: all
+  environment: dev
 - name: xournalpp
   device: all
   environment: desktop
@@ -185,6 +218,9 @@ packages:
 - name: zed
   device: all
   environment: desktop
+- name: zip
+  device: all
+  environment: dev
 - name: zoxide
   device: all
   environment: dev
