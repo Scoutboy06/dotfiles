@@ -34,12 +34,14 @@ _nono_project_grants() {
     _NONO_GRANTS+=(--allow "$NONO_WORKTREES_ROOT/$name")
 }
 
-_nono_wrap() {  # $1 = nono pack, rest = program + args
-  local pack=$1; shift
+_nono_wrap() {  # $1 = nono profile, rest = program + args
+  local profile=$1; shift
   _nono_project_grants
-  nono wrap -s --allow-cwd $_NONO_GRANTS -p "$pack" --extends "$NONO_EXTENDS_PROFILE" -- "$@"
+  nono wrap -s --allow-cwd $_NONO_GRANTS -p "$profile" --extends "$NONO_EXTENDS_PROFILE" -- "$@"
 }
 
-claude()   { _nono_wrap nolabs-ai/claude   claude   "$@" }
+# claude-local is the local profile extending the pack's claude (adds read
+# access to the bun binary); see ~/.config/nono/profiles/claude-local.json.
+claude()   { _nono_wrap claude-local      claude   "$@" }
 opencode() { _nono_wrap nolabs-ai/opencode opencode "$@" }
 pi()       { _nono_wrap nolabs-ai/pi       pi       "$@" }

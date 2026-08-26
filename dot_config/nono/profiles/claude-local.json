@@ -1,0 +1,13 @@
+{
+  "extends": "claude",
+  "meta": {
+    "name": "claude-local",
+    "version": "1",
+    "description": "Claude Code profile with read access to the bun binary"
+  },
+  "filesystem": {
+    "read_file": [
+      "$HOME/.bun/bin/bun"
+    ]
+  }
+}
