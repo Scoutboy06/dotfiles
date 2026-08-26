@@ -104,6 +104,9 @@ packages:
 - name: partitionmanager
   device: all
   environment: desktop
+- name: playerctl
+  device: all
+  environment: desktop
 - name: python
   device: all
   environment: dev
