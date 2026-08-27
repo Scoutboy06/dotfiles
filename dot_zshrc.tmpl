@@ -77,6 +77,13 @@ export PATH=/home/elias/.opencode/bin:$PATH
 # LM Studio CLI (lms)
 export PATH="$PATH:/home/elias/.lmstudio/bin"
 
+{{ if and .isWSL .winUser -}}
+# Zed (installed on Windows; ships a WSL-aware `zed` CLI wrapper in its bin dir)
+ZED_WIN_BIN="/mnt/c/Users/{{ .winUser }}/AppData/Local/Programs/Zed/bin"
+[ -d "$ZED_WIN_BIN" ] && export PATH="$PATH:$ZED_WIN_BIN"
+unset ZED_WIN_BIN
+
+{{ end -}}
 # Cargo
 [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
 
@@ -156,6 +163,10 @@ alias cze='chezmoi edit'
 # (grants the live project + its ~/p/.worktrees tree; see the script)
 (( $+commands[nono] )) && [[ -f ~/.config/zsh/nono-wrappers.zsh ]] &&
   source ~/.config/zsh/nono-wrappers.zsh
+
+dclaude()   { command claude   "$@" }
+dopencode() { command opencode "$@" }
+dpi()       { command pi       "$@" }
 
 o() {
   if [[ ! -f .env ]]; then
@@ -275,3 +286,5 @@ fi
 
 # ----- Local overrides -----
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
