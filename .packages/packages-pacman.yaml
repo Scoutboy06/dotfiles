@@ -56,9 +56,6 @@ packages:
 - name: filezilla
   device: all
   environment: desktop
-- name: firefox-i18n-sv-se
-  device: all
-  environment: desktop
 - name: fzf
   device: all
   environment: dev
