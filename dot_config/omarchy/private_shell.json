@@ -28,7 +28,8 @@
       ],
       "left": [
         {
-          "id": "omarchy.menu"
+          "id": "arch-menu",
+          "type": "qml"
         },
         {
           "id": "elias.workspaces"
