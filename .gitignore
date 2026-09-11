@@ -1,2 +1,5 @@
 __pycache__/
 docs/
+
+# Local machine details, never committed: this repository is public
+windows/config.json
