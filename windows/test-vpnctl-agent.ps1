@@ -14,19 +14,23 @@ $StatusFile = Join-Path $Root 'status.json'
 $ConfigFile = Join-Path $Root 'config.json'
 $LogFile = Join-Path $Root 'log'
 $script:connections = @(
-    [pscustomobject]@{Name='Example A'; ConnectionStatus='Connected'; SplitTunneling=$true; DnsSuffix='internal.example'; Routes=@()},
-    [pscustomobject]@{Name='Example B'; ConnectionStatus='Disconnected'; SplitTunneling=$false; DnsSuffix=''; Routes=@()}
+    [pscustomobject]@{Name='Example A'; ConnectionStatus='Connected'; SplitTunneling=$true; DnsSuffix='internal.example'; Routes=@(); AuthenticationMethod=@('Eap')},
+    [pscustomobject]@{Name='Example B'; ConnectionStatus='Disconnected'; SplitTunneling=$false; DnsSuffix=''; Routes=@(); AuthenticationMethod=@('Eap')}
+)
+$script:allConnections = @(
+    [pscustomobject]@{Name='Device Tunnel'; ConnectionStatus='Connected'; SplitTunneling=$true; DnsSuffix=''; Routes=@(); AuthenticationMethod=@('MachineCertificate')}
 )
 $script:operations = @()
 function Get-VpnConnection {
     param([switch]$AllUserConnection, $ErrorAction)
-    if (!$AllUserConnection) { return $script:connections }
+    if ($AllUserConnection) { return $script:allConnections }
+    return $script:connections
 }
 function rasdial.exe {
     $name = $args[0]
     $disconnect = $args -contains '/disconnect'
     $script:operations += "$name/$disconnect"
-    foreach ($p in $script:connections) {
+    foreach ($p in @($script:connections) + @($script:allConnections)) {
         if ($p.Name -eq $name) { $p.ConnectionStatus = if ($disconnect) { 'Disconnected' } else { 'Connected' } }
     }
     $global:LASTEXITCODE = 0
@@ -40,7 +44,8 @@ function Send-Request($Id, $Enabled, $Profile) {
 try {
     Invoke-Reconcile
     $s = Get-Content $StatusFile -Raw | ConvertFrom-Json
-    Assert ($s.profiles.Count -eq 2) 'Discovery failed'
+    Assert ($s.profiles.Count -eq 2) 'Discovery failed or device tunnel was exposed'
+    Assert ($s.profiles.name -notcontains 'Device Tunnel') 'Machine device tunnel must not be selectable'
     Assert ($s.profiles[0].domains[0] -eq 'internal.example') 'DNS suffix missing'
     Assert ($script:operations.Count -eq 0) 'Startup must not change existing VPNs'
     $s = Send-Request 'one' $true 'user:Example B'
@@ -64,7 +69,7 @@ try {
     Invoke-Reconcile
     $s = Get-Content $StatusFile -Raw | ConvertFrom-Json
     Assert ($s.error -like 'Legacy*') 'Legacy request was not rejected'
-    Write-Output 'PASS: discovery, startup preservation, connect/switch/off, idempotence, unknown profile rejection, routing metadata, legacy rejection, atomic JSON arrays.'
+    Write-Output 'PASS: discovery, device-tunnel filtering, startup preservation, connect/switch/off, idempotence, unknown profile rejection, routing metadata, legacy rejection, atomic JSON arrays.'
 } finally {
     Remove-Item $Root -Recurse -Force
 }

@@ -23,9 +23,11 @@ It runs in the logged-on user session using the existing hidden launcher.
 ## Profiles and routing
 
 The agent discovers user and all-user Windows VPN profiles with
-`Get-VpnConnection`. Profile ids include their scope. It publishes names,
-split/full mode, DNS suffixes, and configured IPv4 routes. No Linux profile
-configuration is needed. The agent never publishes credentials.
+`Get-VpnConnection`. Machine-certificate all-user profiles are Windows device
+tunnels rather than user-selectable VPNs, so the agent leaves them under Windows
+policy control and does not publish them. Profile ids include their scope. It
+publishes names, split/full mode, DNS suffixes, and configured IPv4 routes. No
+Linux profile configuration is needed. The agent never publishes credentials.
 
 If a split profile needs additional domain suffixes or literal IPv4 subnets,
 add them to `config.json` under `routing`, keyed by the profile id or name:

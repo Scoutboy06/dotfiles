@@ -29,6 +29,9 @@ function Get-Profiles {
             @(Get-VpnConnection -ErrorAction Stop)
         }
         foreach ($vpn in $connections) {
+            # Machine-certificate all-user profiles are Windows device tunnels,
+            # not user-selectable VPNs. Leave them under Windows policy control.
+            if ($scope -eq 'all' -and @($vpn.AuthenticationMethod) -contains 'MachineCertificate') { continue }
             $result += [pscustomobject]@{
                 id = $scope + ':' + $vpn.Name
                 name = [string]$vpn.Name

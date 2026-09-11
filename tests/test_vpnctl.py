@@ -143,6 +143,13 @@ class WorkerTests(unittest.TestCase):
         self.assert_stopped()
         self.assertFalse(json.loads((self.p/'remote.json').read_text())['enabled'])
 
+    def test_occupied_socks_port_reports_an_error(self):
+        with socket.socket() as listener:
+            listener.bind(('127.0.0.1',self.ports[0]));listener.listen()
+            self.start()
+            state=self.until(lambda s:s.get('phase')=='error')
+            self.assertIn('SOCKS port is already in use',state['error'])
+
     def test_unreachable_host_does_not_prevent_local_disable(self):
         self.start();self.until(lambda s:s.get('phase')=='connected')
         (self.p/'offline').touch()

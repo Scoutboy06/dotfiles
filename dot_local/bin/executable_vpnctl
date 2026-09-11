@@ -167,6 +167,11 @@ class Gateway:
         self.pac_text = ''
 
     def start(self):
+        with socket.socket() as probe:
+            try:
+                probe.bind(('127.0.0.1', self.c['socksPort']))
+            except OSError as exc:
+                raise RuntimeError('SOCKS port is already in use by another process.') from exc
         gateway = self
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
