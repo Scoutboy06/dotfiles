@@ -8,6 +8,9 @@ session-*.md
 **/__pycache__/**
 **/*.pyc
 
+# Non-dotfiles artifacts
+windows/
+
 # Systemd timer symlinks (managed by systemd enable/disable)
 .config/systemd/user/timers.target.wants/
 
