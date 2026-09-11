@@ -3,3 +3,7 @@ docs/
 
 # Local machine details, never committed: this repository is public
 windows/config.json
+windows/state.json
+windows/status.json
+windows/vpnctl.log
+windows/*.tmp

@@ -51,7 +51,7 @@ Register-ScheduledTask `
     -Trigger @($atLogon, $sweep) `
     -Settings $settings `
     -Principal $principal `
-    -Description 'Reconciles the active VPN profile from state.json, with a lease-based dead-man switch.' | Out-Null
+    -Description 'Reconciles explicit VPN on/off and profile requests from state.json.' | Out-Null
 
 Write-Host "Registered scheduled task '$Name'."
 Write-Host ""

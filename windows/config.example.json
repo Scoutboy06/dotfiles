@@ -1,4 +1,3 @@
 {
-  "splitProfile": "Your split tunnel profile",
-  "fullProfile": "Your full tunnel profile"
+  "routing": {}
 }

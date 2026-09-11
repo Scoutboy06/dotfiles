@@ -1,46 +1,71 @@
-# Windows scripts
+# Windows VPN agent
 
-These run on the work laptop and are not managed by chezmoi; `windows/` is
-listed in `.chezmoiignore`. Copy them to the machine by hand. The agent keeps
-its state files (`state.json`, `status.json`, `vpnctl.log`) in whatever
-directory it is placed in.
+This directory belongs on the `windows-scripts` branch. Copy these scripts to
+the host; they are not deployed by chezmoi. Keep machine-specific information
+in `config.json` beside the agent, which is ignored by Git.
 
-## VPN agent
+## Upgrade to protocol 2
 
-`vpnctl-agent.ps1` keeps the right Always On VPN profile connected. It reads
-`state.json` from its own directory and reconciles the connection, which is
-what lets `vpnctl` on Linux switch tunnels over SSH. A non-default profile
-carries a lease; when the lease expires, or the tailnet has been unreachable
-for five ticks, the agent returns to the split tunnel. That is the recovery
-path if a route change cuts off remote access.
+Stop the running `vpnctl-agent` task, replace `vpnctl-agent.ps1`, then start the
+task again. No task reinstallation is necessary. The new agent ignores legacy
+state requests; do not leave the old agent running alongside it. The Linux
+client refuses older status formats before changing any VPN state.
 
-It is resident rather than periodic: it blocks on a filesystem watcher, so a
-state change is acted on at once, and the 30 second wait timeout doubles as the
-tick for lease expiry and the health check. Do not start it directly.
+```powershell
+Stop-ScheduledTask -TaskName vpnctl-agent
+# Copy the updated vpnctl-agent.ps1 into the existing agent directory here.
+Start-ScheduledTask -TaskName vpnctl-agent
+```
 
-Copy `config.example.json` to `config.json` beside the agent and fill in the
-two profile names exactly as Windows shows them. That file is untracked,
-because this repository is public; the example is not a list of real profiles.
-The agent refuses to start without it rather than guess. The Linux side keeps
-its own names in `~/.config/vpnctl/config.json`; the two must agree.
+For a new installation, run `install-task.ps1`, then start the scheduled task.
+It runs in the logged-on user session using the existing hidden launcher.
 
-`install-task.ps1` registers the agent as a per-user scheduled task. Run it
-once, then start the task without logging out:
+## Profiles and routing
 
-    powershell -ExecutionPolicy Bypass -File .\install-task.ps1
-    Start-ScheduledTask -TaskName vpnctl-agent
+The agent discovers user and all-user Windows VPN profiles with
+`Get-VpnConnection`. Profile ids include their scope. It publishes names,
+split/full mode, DNS suffixes, and configured IPv4 routes. No Linux profile
+configuration is needed. The agent never publishes credentials.
 
-No elevation is needed. The task runs as you and only while you are logged on,
-which is what the TPM-bound user certificate requires. Remove it with
-`Unregister-ScheduledTask -TaskName vpnctl-agent -Confirm:$false`.
+If a split profile needs additional domain suffixes or literal IPv4 subnets,
+add them to `config.json` under `routing`, keyed by the profile id or name:
 
-`launch-hidden.vbs` starts the agent with no console window. The task invokes
-it; there is no reason to run it yourself. `powershell.exe -WindowStyle Hidden`
-is not a substitute, because conhost creates the window before PowerShell can
-hide it.
+```json
+{
+  "routing": {
+    "user:Example VPN": {
+      "domains": ["internal.example"],
+      "routes": ["192.0.2.0/24"]
+    }
+  }
+}
+```
 
-## Packages
+Use real values only in the host's untracked file. The agent reloads it each
+pass. Domain matching sends names to the SOCKS endpoint for remote DNS; IPv4
+subnet matching applies to literal IP URLs, not locally resolved hostnames.
+Full profiles proxy all destinations except loopback. Proxy support is
+application-dependent and does not provide a transparent system-wide tunnel.
 
-`install-windows-packages.ps1` is a stub. It is meant to install the packages
-in `.packages/packages-winget.yaml` through winget, but currently only prints a
-TODO.
+## Control contract
+
+`status.json` is written atomically as UTF-8 with `version: 2`, a request id,
+`enabled`, `desiredId`, `connectedIds` (always an array), `profiles` (always an
+array), and `error`. Linux atomically replaces `state.json` with a request:
+
+```json
+{"version":2,"id":"unique-request-id","enabled":true,"profileId":"user:Example VPN"}
+```
+
+With `enabled: false`, the agent disconnects discovered VPN profiles. With
+`enabled: true`, it disconnects other profiles and connects the selected one.
+There is no lease, expiry, tailnet watchdog, or automatic profile fallback.
+The requested state remains until another request changes it. Windows policy
+may prevent disconnecting; errors and actual connected ids remain visible.
+Missing state does not disconnect a VPN that was started independently.
+
+Disabling Linux immediately tears down local proxy access and attempts a
+bounded host disconnect. If the host is unreachable, local access still stops,
+but the host may remain connected. No Linux process retries while disabled.
+Losing access to a full-tunnel host now requires restoring access or operating
+the host directly; the agent does not revert automatically.
