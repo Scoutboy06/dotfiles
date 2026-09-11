@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "elias.vpn",
+  "name": "Work VPN",
+  "version": "1.0.0",
+  "description": "Work laptop VPN profiles and full tunnel leases through vpnctl.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Panel.qml" },
+  "barWidget": {
+    "displayName": "Work VPN",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

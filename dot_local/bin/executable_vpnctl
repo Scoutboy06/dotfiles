@@ -13,17 +13,13 @@ set -euo pipefail
 # lease: if it is not renewed, the agent falls back to the split tunnel on its
 # own and remote access returns without a trip home.
 
-HOST="${VPNCTL_HOST:-hq-lap-103-wsl}"
-DIR="${VPNCTL_DIR:-/mnt/c/Users/elias.wennerlund/vpnctl}"
-
-SPLIT_PROFILE='Inet AlwaysOn VPN'
-FULL_PROFILE='UTV - Inet AlwaysOn VPN'
 MAX_LEASE_MINUTES=720
 
 usage() {
     printf 'Usage: %s <command> [args]\n' "${0##*/}" >&2
     printf 'Control the work laptop'"'"'s Always On VPN profile over SSH.\n\n' >&2
     printf '  status           show the agent'"'"'s current state\n' >&2
+    printf '  profiles         show locally configured profiles as JSON\n' >&2
     printf '  split            revert to the split tunnel (the safe default)\n' >&2
     printf '  full <minutes>   full tunnel for <minutes>, then auto-revert\n' >&2
     printf '  renew [minutes]  extend the active lease (default 60)\n' >&2
@@ -36,8 +32,30 @@ die() {
     exit 1
 }
 
+load_config() {
+    local config="${VPNCTL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/vpnctl/config.json}"
+    command -v jq >/dev/null || die "jq is required"
+    [[ -r "$config" ]] || die "configure $config using config.example.json first"
+    jq -e 'type == "object" and all(.host, .directory, .splitProfile, .fullProfile;
+        type == "string" and length > 0 and (explode | all(. >= 32)))
+        and .splitProfile != .fullProfile' "$config" >/dev/null || die "invalid configuration: $config"
+    HOST="${VPNCTL_HOST:-$(jq -r .host "$config")}"
+    DIR="${VPNCTL_DIR:-$(jq -r .directory "$config")}"
+    SPLIT_PROFILE=$(jq -r .splitProfile "$config")
+    FULL_PROFILE=$(jq -r .fullProfile "$config")
+    [[ "$HOST" != -* ]] || die "host must not start with a dash"
+    # Escape the path for the remote POSIX shell's single-quoted arguments.
+    DIR=${DIR//\'/\'\\\'\'}
+}
+
 remote() {
-    ssh -o ConnectTimeout=10 "$HOST" "$@"
+    # A tunnel change can leave an established SSH connection silently dead.
+    # Bound both connection setup and unanswered keepalives; never reuse a
+    # multiplexed session from before the route change.
+    ssh -o ConnectTimeout=10 -o ConnectionAttempts=1 \
+        -o ServerAliveInterval=3 -o ServerAliveCountMax=2 \
+        -o ControlMaster=no -o ControlPath=none \
+        -o BatchMode=yes "$HOST" "$@"
 }
 
 check_minutes() {
@@ -51,23 +69,35 @@ check_minutes() {
 set_lease() {
     local profile="$1" minutes="$2" expires
     expires=$(date -u -d "+${minutes} minutes" +%Y-%m-%dT%H:%M:%SZ)
-    printf '{"profile":"%s","expires":"%s"}\n' "$profile" "$expires" |
-        remote "cat > '$DIR/state.json'" || die "could not write state to $HOST"
+    jq -nc --arg profile "$profile" --arg expires "$expires" '{profile: $profile, expires: $expires}' |
+        remote "cat > '$DIR/state.json'" ||
+        die "lease write not confirmed; run vpnctl status before retrying"
     printf '%s\nlease expires %s\n' "$profile" "$expires"
 }
 
 [[ $# -ge 1 ]] || usage
+[[ "$1" != -h && "$1" != --help ]] || usage
+load_config
 
 case "$1" in
+    profiles)
+        jq -n --arg split "$SPLIT_PROFILE" --arg full "$FULL_PROFILE" '{split: $split, full: $full}'
+        ;;
     status)
         remote "cat '$DIR/status.json'" ||
             die "no status yet - is the vpnctl-agent task running?"
+        ;;
+    snapshot)
+        # The popup receives state and local profile metadata in one response.
+        state=$(remote "cat '$DIR/status.json'") || die "could not read VPN status"
+        printf '%s' "$state" | jq --arg split "$SPLIT_PROFILE" --arg full "$FULL_PROFILE" \
+            '. + {profiles: {split: $split, full: $full}}'
         ;;
     split|safe)
         # Clearing the lease is enough; touching a watched file just wakes the
         # agent now rather than leaving it until its next tick.
         remote "rm -f '$DIR/state.json' && touch '$DIR/status.json'" ||
-            die "could not clear state on $HOST"
+            die "split tunnel request not confirmed; run vpnctl status before retrying"
         printf 'reverting to %s\n' "$SPLIT_PROFILE"
         ;;
     full|dev)
@@ -80,11 +110,12 @@ case "$1" in
     renew)
         mins="${2:-60}"
         check_minutes "$mins"
-        state=$(remote "cat '$DIR/state.json' 2>/dev/null" || true)
+        state=$(remote "if test -f '$DIR/state.json'; then cat '$DIR/state.json'; fi") ||
+            die "could not read the active lease from $HOST"
         [[ -n "$state" ]] || die "no active lease; already on the split tunnel"
-        profile=$(printf '%s' "$state" |
-            sed -n 's/.*"profile"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        set_lease "${profile:-$FULL_PROFILE}" "$mins"
+        profile=$(printf '%s' "$state" | jq -er '.profile | select(type == "string" and length > 0)') ||
+            die "invalid active lease"
+        set_lease "$profile" "$mins"
         ;;
     log)
         lines="${2:-40}"

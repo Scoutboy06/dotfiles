@@ -1,0 +1,6 @@
+{
+  "host": "work-laptop-ssh-alias",
+  "directory": "/path/to/vpnctl-agent-state",
+  "splitProfile": "Your split tunnel profile",
+  "fullProfile": "Your full tunnel profile"
+}
