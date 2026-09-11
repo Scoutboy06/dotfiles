@@ -15,6 +15,16 @@
 {{- end }}
 
 {{- $isWSL := (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+
+{{/* Fall back to asking Windows who is running this WSL instance. Interop is
+     invoked by absolute path because the shell strips /mnt/* from PATH, and the
+     whole thing is wrapped so it always exits 0: output aborts the template on a
+     non-zero exit, which would make chezmoi init fail on any machine where
+     interop is unavailable rather than simply leaving winUser empty. */}}
+{{- if and (not $winUser) $isWSL -}}
+{{-   $winUser = output "/bin/sh" "-c" "/mnt/c/Windows/System32/cmd.exe /c \"echo %USERNAME%\" 2>/dev/null || true" | trim -}}
+{{- end -}}
+
 {{- $hasDE := or (eq .chezmoi.os "windows") $isOmarchy (and (not $isWSL) (not (eq $device "server"))) -}}
 
 sourceDir = "/home/elias/p/dotfiles"
