@@ -43,6 +43,11 @@ Machine detection lives in `.chezmoi.toml.tmpl`, keyed on hostname:
 | `eliaslt` / `EliasLT` | Laptop | `.isLaptop` |
 | Local `DOTFILES_DEVICE=worklt` opt-in | Work laptop | `.isWorkLaptop` |
 
+Set `DOTFILES_WINUSER` to the Windows account name to populate `.winUser`, used
+to reach Windows-side tooling from WSL. It is a local opt-in for the same reason
+as `DOTFILES_DEVICE`: the value stays out of this repository. Leaving it unset
+is supported, and the templates that use it degrade to doing nothing.
+
 Other template variables available in `.tmpl` files: `.device`, `.isOmarchy`, `.hasDE` (false on WSL/servers), `.monitorScale`, `.primaryMonitor`, `.editor`.
 
 Machine-specific file exclusions (e.g. laptop-only battery monitor, eduroam) are in `.chezmoiignore`.

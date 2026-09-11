@@ -2,6 +2,7 @@
 {{- $isDesktop := or (eq $hostname "EliasPC") (eq $hostname "eliaspc") -}}
 {{- $isLaptop := or (eq $hostname "eliaslt") (eq $hostname "EliasLT") -}}
 {{- $isWorkLaptop := eq (env "DOTFILES_DEVICE") "worklt" -}}
+{{- $winUser := env "DOTFILES_WINUSER" -}}
 {{- $isOmarchy := lookPath "omarchy" | not | not -}}
 
 {{- $device := "unknown" -}}
@@ -26,6 +27,7 @@ sourceDir = "/home/elias/p/dotfiles"
   isWorkLaptop = {{ $isWorkLaptop }}
   isOmarchy = {{ $isOmarchy }}
   isWSL = {{ $isWSL }}
+  winUser = {{ $winUser | quote }}
   hasDE = {{ $hasDE }}
 {{- if $isDesktop }}
   monitorScale = 1.0
