@@ -1,0 +1,17 @@
+[Unit]
+Description=SOCKS proxy into the work VPN
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ssh -N -D 127.0.0.1:1080 \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=30 \
+  -o ExitOnForwardFailure=yes \
+  -o BatchMode=yes \
+  elias@hq-lap-103-wsl
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,5 @@
+# The indicator is shown when at least one URL responds through the work proxy.
+# Add one stable URL per VPN if the work computer can use multiple VPNs.
+probe_urls=(
+  "https://tidomat.inetdata.se"
+)

@@ -22,3 +22,11 @@ session-*.md
 .config/systemd/user/battery-monitor.service
 .config/systemd/user/battery-monitor.timer
 {{ end }}
+
+{{ if not .isDesktop }}
+# Work VPN access is only configured on the home PC
+.config/systemd/user/work-vpn-proxy.service
+.config/work-vpn-proxy/
+.config/omarchy/plugins/elias.indicators/
+.local/bin/work-vpn-proxy
+{{ end }}

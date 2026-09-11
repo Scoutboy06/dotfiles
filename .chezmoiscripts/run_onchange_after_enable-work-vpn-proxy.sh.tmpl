@@ -1,0 +1,107 @@
+{{ if and .isOmarchy .isDesktop -}}
+#!/usr/bin/env bash
+# work-vpn-proxy.service: {{ include "dot_config/systemd/user/work-vpn-proxy.service" | sha256sum }}
+# work-vpn-proxy helper: {{ include "dot_local/bin/executable_work-vpn-proxy" | sha256sum }}
+# work-vpn-proxy config: {{ include "dot_config/work-vpn-proxy/config" | sha256sum }}
+# work-vpn-proxy PAC: {{ include "dot_config/work-vpn-proxy/proxy.pac" | sha256sum }}
+
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  printf '\033[31m[error]\033[0m Do not run this script as root\n' >&2
+  exit 1
+fi
+
+log_info() { printf '\033[34m[info]\033[0m %s\n' "$1"; }
+log_success() { printf '\033[32m[success]\033[0m %s\n' "$1"; }
+log_warn() { printf '\033[33m[warn]\033[0m %s\n' "$1"; }
+
+legacy_service="tidomat-socks.service"
+legacy_unit="$HOME/.config/systemd/user/$legacy_service"
+legacy_helper="$HOME/.local/bin/tidomat-socks"
+
+if [[ -e "$legacy_unit" || -e "$legacy_helper" ]]; then
+  log_info "Removing the legacy work proxy"
+  systemctl --user disable --now "$legacy_service" >/dev/null 2>&1 || true
+  rm -f "$legacy_unit" "$legacy_helper"
+fi
+
+log_info "Enabling the work VPN proxy"
+systemctl --user daemon-reload
+systemctl --user enable work-vpn-proxy.service
+systemctl --user restart work-vpn-proxy.service
+
+zen_root="$HOME/.config/zen"
+profiles_ini="$zen_root/profiles.ini"
+
+if [[ -f "$profiles_ini" ]]; then
+  profile_path="$(awk '
+    /^\[Install[^]]*\]$/ { in_install = 1; next }
+    /^\[/ { in_install = 0 }
+    in_install && /^Default=/ {
+      sub(/^Default=/, "")
+      print
+      exit
+    }
+  ' "$profiles_ini")"
+
+  if [[ -z "$profile_path" ]]; then
+    profile_path="$(awk '
+      /^\[Profile[0-9]+\]$/ { in_profile = 1; path = ""; is_default = 0; next }
+      /^\[/ {
+        if (in_profile && is_default && path != "") {
+          print path
+          found = 1
+          exit
+        }
+        in_profile = 0
+      }
+      in_profile && /^Path=/ {
+        sub(/^Path=/, "")
+        path = $0
+      }
+      in_profile && /^Default=1$/ { is_default = 1 }
+      END {
+        if (!found && in_profile && is_default && path != "") print path
+      }
+    ' "$profiles_ini")"
+  fi
+
+  if [[ -n "$profile_path" && -d "$zen_root/$profile_path" ]]; then
+    user_js="$zen_root/$profile_path/user.js"
+    pac_url="file://$HOME/.config/work-vpn-proxy/proxy.pac"
+    existing="$(mktemp)"
+    updated="$(mktemp)"
+
+    if [[ -f "$user_js" ]]; then
+      awk '
+        $0 == "// BEGIN work-vpn-proxy" { managed = 1; next }
+        $0 == "// END work-vpn-proxy" { managed = 0; next }
+        !managed { print }
+      ' "$user_js" > "$existing"
+    fi
+
+    {
+      sed -e '${/^$/d;}' "$existing"
+      printf '\n// BEGIN work-vpn-proxy\n'
+      printf 'user_pref("network.proxy.type", 2);\n'
+      printf 'user_pref("network.proxy.autoconfig_url", "%s");\n' "$pac_url"
+      printf 'user_pref("network.proxy.socks_remote_dns", true);\n'
+      printf '// END work-vpn-proxy\n'
+    } > "$updated"
+
+    if [[ ! -f "$user_js" ]] || ! cmp -s "$updated" "$user_js"; then
+      install -m 600 "$updated" "$user_js"
+      log_warn "Restart Zen once to load the domain-based proxy configuration"
+    fi
+
+    rm -f "$existing" "$updated"
+  else
+    log_warn "Could not determine Zen's active profile; configure the PAC URL manually"
+  fi
+else
+  log_warn "Zen is not installed; configure the PAC URL in your browser manually"
+fi
+
+log_success "Work VPN proxy enabled on 127.0.0.1:1080"
+{{- end }}

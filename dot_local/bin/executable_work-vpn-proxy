@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+service="work-vpn-proxy.service"
+proxy="socks5h://127.0.0.1:1080"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/work-vpn-proxy/config"
+probe_urls=()
+
+if [[ -r "$config" ]]; then
+  # shellcheck source=/dev/null
+  source "$config"
+fi
+
+is_reachable() {
+  systemctl --user is-active --quiet "$service" || return 1
+
+  if (( ${#probe_urls[@]} == 0 )); then
+    return 0
+  fi
+
+  local url
+  for url in "${probe_urls[@]}"; do
+    if curl --head --insecure --silent --output /dev/null \
+      --connect-timeout 2 --max-time 4 --proxy "$proxy" "$url"; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+status() {
+  if is_reachable; then
+    printf '{"text":"󰌆","tooltip":"Work VPN access available\\nInternal tools are routed through 127.0.0.1:1080"}\n'
+  else
+    printf '{"text":""}\n'
+  fi
+}
+
+case "${1:-status}" in
+  status)
+    status
+    ;;
+  check)
+    is_reachable
+    ;;
+  start | stop | restart)
+    systemctl --user "$1" "$service"
+    ;;
+  toggle)
+    if systemctl --user is-active --quiet "$service"; then
+      systemctl --user stop "$service"
+    else
+      systemctl --user start "$service"
+    fi
+    ;;
+  *)
+    printf 'Usage: %s {status|check|start|stop|restart|toggle}\n' "${0##*/}" >&2
+    exit 2
+    ;;
+esac
