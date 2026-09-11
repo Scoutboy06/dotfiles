@@ -2,3 +2,10 @@ __pycache__/
 docs/
 dot_config/vpnctl/config.json
 dot_config/vpnctl/private_config.json
+
+# Local machine details, never committed: this repository is public
+windows/config.json
+windows/state.json
+windows/status.json
+windows/vpnctl.log
+windows/*.tmp
