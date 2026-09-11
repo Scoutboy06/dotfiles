@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Drives the work laptop's Always On VPN profile remotely, so the laptop can be
+# left at home. A resident agent there (scheduled task 'vpnctl-agent') watches
+# state.json and reconciles which profile is connected. The VPN cannot be run
+# locally: its client certificate is sealed in the laptop's TPM and is not
+# exportable.
+#
+# The full tunnel captures 0.0.0.0/0, which tears down the Tailscale session
+# this script arrives over. Every non-default profile therefore carries a
+# lease: if it is not renewed, the agent falls back to the split tunnel on its
+# own and remote access returns without a trip home.
+
+HOST="${VPNCTL_HOST:-hq-lap-103-wsl}"
+DIR="${VPNCTL_DIR:-/mnt/c/Users/elias.wennerlund/vpnctl}"
+
+SPLIT_PROFILE='Inet AlwaysOn VPN'
+FULL_PROFILE='UTV - Inet AlwaysOn VPN'
+MAX_LEASE_MINUTES=720
+
+usage() {
+    printf 'Usage: %s <command> [args]\n' "${0##*/}" >&2
+    printf 'Control the work laptop'"'"'s Always On VPN profile over SSH.\n\n' >&2
+    printf '  status           show the agent'"'"'s current state\n' >&2
+    printf '  split            revert to the split tunnel (the safe default)\n' >&2
+    printf '  full <minutes>   full tunnel for <minutes>, then auto-revert\n' >&2
+    printf '  renew [minutes]  extend the active lease (default 60)\n' >&2
+    printf '  log [lines]      tail the agent log (default 40)\n' >&2
+    exit 2
+}
+
+die() {
+    printf '%s: %s\n' "${0##*/}" "$1" >&2
+    exit 1
+}
+
+remote() {
+    ssh -o ConnectTimeout=10 "$HOST" "$@"
+}
+
+check_minutes() {
+    local mins="$1"
+    [[ "$mins" =~ ^[0-9]+$ ]] || die "minutes must be a number: $mins"
+    [[ "$mins" -ge 1 ]] || die "lease must be at least 1 minute"
+    [[ "$mins" -le "$MAX_LEASE_MINUTES" ]] ||
+        die "lease may not exceed $MAX_LEASE_MINUTES minutes"
+}
+
+set_lease() {
+    local profile="$1" minutes="$2" expires
+    expires=$(date -u -d "+${minutes} minutes" +%Y-%m-%dT%H:%M:%SZ)
+    printf '{"profile":"%s","expires":"%s"}\n' "$profile" "$expires" |
+        remote "cat > '$DIR/state.json'" || die "could not write state to $HOST"
+    printf '%s\nlease expires %s\n' "$profile" "$expires"
+}
+
+[[ $# -ge 1 ]] || usage
+
+case "$1" in
+    status)
+        remote "cat '$DIR/status.json'" ||
+            die "no status yet - is the vpnctl-agent task running?"
+        ;;
+    split|safe)
+        # Clearing the lease is enough; touching a watched file just wakes the
+        # agent now rather than leaving it until its next tick.
+        remote "rm -f '$DIR/state.json' && touch '$DIR/status.json'" ||
+            die "could not clear state on $HOST"
+        printf 'reverting to %s\n' "$SPLIT_PROFILE"
+        ;;
+    full|dev)
+        [[ $# -eq 2 ]] || die "full requires a lease length in minutes"
+        check_minutes "$2"
+        printf 'the full tunnel will drop this SSH session; Tailscale must\n' >&2
+        printf 'reconnect via DERP through the corporate egress\n\n' >&2
+        set_lease "$FULL_PROFILE" "$2"
+        ;;
+    renew)
+        mins="${2:-60}"
+        check_minutes "$mins"
+        state=$(remote "cat '$DIR/state.json' 2>/dev/null" || true)
+        [[ -n "$state" ]] || die "no active lease; already on the split tunnel"
+        profile=$(printf '%s' "$state" |
+            sed -n 's/.*"profile"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        set_lease "${profile:-$FULL_PROFILE}" "$mins"
+        ;;
+    log)
+        lines="${2:-40}"
+        [[ "$lines" =~ ^[0-9]+$ ]] || die "line count must be a number: $lines"
+        remote "tail -n '$lines' '$DIR/vpnctl.log'" || die "no log yet"
+        ;;
+    -h|--help)
+        usage
+        ;;
+    *)
+        die "unknown command: $1"
+        ;;
+esac
