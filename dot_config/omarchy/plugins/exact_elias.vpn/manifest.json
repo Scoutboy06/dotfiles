@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "id": "elias.vpn",
-  "name": "Work VPN",
+  "name": "VPN",
   "version": "1.0.0",
-  "description": "Work laptop VPN profiles and full tunnel leases through vpnctl.",
+  "description": "On-demand remote VPN proxy with host-discovered profiles.",
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "Panel.qml" },
   "barWidget": {
-    "displayName": "Work VPN",
+    "displayName": "VPN",
     "category": "Network",
     "allowMultiple": false,
     "defaultSection": "right"

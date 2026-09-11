@@ -3,6 +3,7 @@ AGENTS.md
 README.md
 CODE.md
 session-*.md
+tests/
 
 # Build artifacts
 **/__pycache__/**

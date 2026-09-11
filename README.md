@@ -41,7 +41,7 @@ Machine detection lives in `.chezmoi.toml.tmpl`, keyed on hostname:
 |----------|--------|-------------------|
 | `eliaspc` / `EliasPC` | Desktop | `.isDesktop` |
 | `eliaslt` / `EliasLT` | Laptop | `.isLaptop` |
-| `HQ-LAP-103` | Work laptop | `.isWorkLaptop` |
+| Local `DOTFILES_DEVICE=worklt` opt-in | Work laptop | `.isWorkLaptop` |
 
 Other template variables available in `.tmpl` files: `.device`, `.isOmarchy`, `.hasDE` (false on WSL/servers), `.monitorScale`, `.primaryMonitor`, `.editor`.
 

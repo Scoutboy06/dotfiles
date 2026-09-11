@@ -1,2 +1,4 @@
 __pycache__/
 docs/
+dot_config/vpnctl/config.json
+dot_config/vpnctl/private_config.json

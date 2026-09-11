@@ -1,131 +1,355 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
+"""On-demand access to a remote VPN through SSH SOCKS and system proxy settings."""
+import argparse
+import http.server
+import ipaddress
+import json
+import os
+from pathlib import Path
+import shlex
+import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
+import uuid
 
-set -euo pipefail
+UNIT = 'vpnctl.service'
+STATE = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'vpnctl'
+RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}')) / 'vpnctl'
+CONFIG = Path(os.environ.get('VPNCTL_CONFIG', Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'vpnctl/config.json'))
+SCHEMA = 'org.gnome.system.proxy'
 
-# Drives the work laptop's Always On VPN profile remotely, so the laptop can be
-# left at home. A resident agent there (scheduled task 'vpnctl-agent') watches
-# state.json and reconciles which profile is connected. The VPN cannot be run
-# locally: its client certificate is sealed in the laptop's TPM and is not
-# exportable.
-#
-# The full tunnel captures 0.0.0.0/0, which tears down the Tailscale session
-# this script arrives over. Every non-default profile therefore carries a
-# lease: if it is not renewed, the agent falls back to the split tunnel on its
-# own and remote access returns without a trip home.
 
-MAX_LEASE_MINUTES=720
+def read_json(path, default=None):
+    try:
+        return json.loads(path.read_text(encoding='utf-8-sig'))
+    except FileNotFoundError:
+        return default
 
-usage() {
-    printf 'Usage: %s <command> [args]\n' "${0##*/}" >&2
-    printf 'Control the work laptop'"'"'s Always On VPN profile over SSH.\n\n' >&2
-    printf '  status           show the agent'"'"'s current state\n' >&2
-    printf '  profiles         show locally configured profiles as JSON\n' >&2
-    printf '  split            revert to the split tunnel (the safe default)\n' >&2
-    printf '  full <minutes>   full tunnel for <minutes>, then auto-revert\n' >&2
-    printf '  renew [minutes]  extend the active lease (default 60)\n' >&2
-    printf '  log [lines]      tail the agent log (default 40)\n' >&2
-    exit 2
+
+def write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temp = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
+    try:
+        with temp.open('x', encoding='utf-8') as f:
+            os.chmod(temp, 0o600)
+            json.dump(value, f)
+        temp.replace(path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def run(args, **kwargs):
+    return subprocess.run(args, check=True, text=True, capture_output=True, timeout=12, **kwargs).stdout.strip()
+
+
+def config():
+    c = read_json(CONFIG)
+    if not isinstance(c, dict):
+        raise ValueError(f'Configure {CONFIG} first (see config.example.json).')
+    for k in ('host', 'directory'):
+        if not isinstance(c.get(k), str) or not c[k] or any(ord(x) < 32 for x in c[k]):
+            raise ValueError(f'Invalid {k} in {CONFIG}')
+    if c['host'].startswith('-'):
+        raise ValueError('Invalid SSH destination')
+    for k, default in (('socksPort', 1080), ('pacPort', 1081)):
+        c[k] = c.get(k, default)
+        if type(c[k]) is not int or not 1024 <= c[k] <= 65535:
+            raise ValueError(f'Invalid {k}')
+    if c['socksPort'] == c['pacPort']:
+        raise ValueError('Proxy ports must differ')
+    return c
+
+
+def ssh(c):
+    return ['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
+            '-o', 'ServerAliveInterval=3', '-o', 'ServerAliveCountMax=2',
+            '-o', 'ControlMaster=no', '-o', 'ControlPath=none', '-o', 'ExitOnForwardFailure=yes']
+
+
+def remote_status(c):
+    text = run(ssh(c) + [c['host'], 'cat ' + shlex.quote(c['directory'] + '/status.json')])
+    s = json.loads(text.lstrip('\ufeff'))
+    if s.get('version') != 2:
+        raise ValueError('Update the Windows agent from windows-scripts before enabling VPN access.')
+    if not isinstance(s.get('profiles'), list) or not isinstance(s.get('connectedIds'), list):
+        raise ValueError('Invalid agent status')
+    seen = set()
+    for p in s['profiles']:
+        if not isinstance(p, dict) or not isinstance(p.get('id'), str) or not p['id'] or p['id'] in seen or not isinstance(p.get('name'), str):
+            raise ValueError('Invalid profile list')
+        seen.add(p['id'])
+    return s
+
+
+def request(c, enabled, profile_id=''):
+    ident = uuid.uuid4().hex
+    target = c['directory'] + '/state.json'
+    temp = target + '.' + ident + '.tmp'
+    command = 'umask 077; cat > ' + shlex.quote(temp) + ' && mv -f ' + shlex.quote(temp) + ' ' + shlex.quote(target)
+    run(ssh(c) + [c['host'], command], input=json.dumps({'version': 2, 'id': ident, 'enabled': enabled, 'profileId': profile_id}))
+    return ident
+
+
+def pac(profile, port):
+    """Never resolve hostnames locally: domain matching preserves remote DNS."""
+    domains = profile.get('domains', [])
+    routes = profile.get('routes', [])
+    if not isinstance(domains, list) or not all(isinstance(x, str) and x and not any(ord(ch) < 32 for ch in x) for x in domains):
+        raise ValueError('Invalid proxy domains from host')
+    networks = []
+    for route in routes:
+        net = ipaddress.ip_network(route, strict=False)
+        if net.version == 4 and net.prefixlen:
+            networks.append([str(net.network_address), str(net.netmask)])
+    full = profile.get('splitTunneling') is False
+    if not full and not domains and not networks:
+        raise ValueError('This profile has no proxy destinations. Configure routing on the Windows host.')
+    return '''function FindProxyForURL(url, host) {
+  host = host.toLowerCase().replace(/\\.$/, "");
+  if (host === "localhost" || host === "::1" || host === "[::1]" || /^127\\./.test(host)) return "DIRECT";
+  var domains = %s, networks = %s;
+  var proxy = "SOCKS5 127.0.0.1:%d";
+  if (%s) return proxy;
+  for (var i = 0; i < domains.length; i++) {
+    var d = domains[i].toLowerCase().replace(/^\\./, "");
+    if (host === d || host.endsWith("." + d)) return proxy;
+  }
+  if (/^\\d+\\.\\d+\\.\\d+\\.\\d+$/.test(host)) {
+    for (var j = 0; j < networks.length; j++) if (isInNet(host, networks[j][0], networks[j][1])) return proxy;
+  }
+  return "DIRECT";
 }
+''' % (json.dumps(domains), json.dumps(networks), port, 'true' if full else 'false')
 
-die() {
-    printf '%s: %s\n' "${0##*/}" "$1" >&2
-    exit 1
-}
 
-load_config() {
-    local config="${VPNCTL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/vpnctl/config.json}"
-    command -v jq >/dev/null || die "jq is required"
-    [[ -r "$config" ]] || die "configure $config using config.example.json first"
-    jq -e 'type == "object" and all(.host, .directory, .splitProfile, .fullProfile;
-        type == "string" and length > 0 and (explode | all(. >= 32)))
-        and .splitProfile != .fullProfile' "$config" >/dev/null || die "invalid configuration: $config"
-    HOST="${VPNCTL_HOST:-$(jq -r .host "$config")}"
-    DIR="${VPNCTL_DIR:-$(jq -r .directory "$config")}"
-    SPLIT_PROFILE=$(jq -r .splitProfile "$config")
-    FULL_PROFILE=$(jq -r .fullProfile "$config")
-    [[ "$HOST" != -* ]] || die "host must not start with a dash"
-    # Escape the path for the remote POSIX shell's single-quoted arguments.
-    DIR=${DIR//\'/\'\\\'\'}
-}
+def gget(key):
+    return run(['gsettings', 'get', SCHEMA, key])
 
-remote() {
-    # A tunnel change can leave an established SSH connection silently dead.
-    # Bound both connection setup and unanswered keepalives; never reuse a
-    # multiplexed session from before the route change.
-    ssh -o ConnectTimeout=10 -o ConnectionAttempts=1 \
-        -o ServerAliveInterval=3 -o ServerAliveCountMax=2 \
-        -o ControlMaster=no -o ControlPath=none \
-        -o BatchMode=yes "$HOST" "$@"
-}
 
-check_minutes() {
-    local mins="$1"
-    [[ "$mins" =~ ^[0-9]+$ ]] || die "minutes must be a number: $mins"
-    [[ "$mins" -ge 1 ]] || die "lease must be at least 1 minute"
-    [[ "$mins" -le "$MAX_LEASE_MINUTES" ]] ||
-        die "lease may not exceed $MAX_LEASE_MINUTES minutes"
-}
+def gset(key, value):
+    run(['gsettings', 'set', SCHEMA, key, value])
 
-set_lease() {
-    local profile="$1" minutes="$2" expires
-    expires=$(date -u -d "+${minutes} minutes" +%Y-%m-%dT%H:%M:%SZ)
-    jq -nc --arg profile "$profile" --arg expires "$expires" '{profile: $profile, expires: $expires}' |
-        remote "cat > '$DIR/state.json'" ||
-        die "lease write not confirmed; run vpnctl status before retrying"
-    printf '%s\nlease expires %s\n' "$profile" "$expires"
-}
 
-[[ $# -ge 1 ]] || usage
-[[ "$1" != -h && "$1" != --help ]] || usage
-load_config
+def restore_proxy():
+    saved = read_json(STATE / 'proxy-backup.json')
+    if saved:
+        # Restore only while our settings still own the proxy. Preserve edits
+        # made by the user or another proxy tool during this session.
+        if gget('autoconfig-url') == saved['ownedUrl'] and gget('mode') == "'auto'":
+            gset('mode', "'none'")
+            gset('autoconfig-url', saved['url'])
+            gset('mode', saved['mode'])
+        (STATE / 'proxy-backup.json').unlink(missing_ok=True)
 
-case "$1" in
-    profiles)
-        jq -n --arg split "$SPLIT_PROFILE" --arg full "$FULL_PROFILE" '{split: $split, full: $full}'
-        ;;
-    status)
-        remote "cat '$DIR/status.json'" ||
-            die "no status yet - is the vpnctl-agent task running?"
-        ;;
-    snapshot)
-        # The popup receives state and local profile metadata in one response.
-        state=$(remote "cat '$DIR/status.json'") || die "could not read VPN status"
-        printf '%s' "$state" | jq --arg split "$SPLIT_PROFILE" --arg full "$FULL_PROFILE" \
-            '. + {profiles: {split: $split, full: $full}}'
-        ;;
-    split|safe)
-        # Clearing the lease is enough; touching a watched file just wakes the
-        # agent now rather than leaving it until its next tick.
-        remote "rm -f '$DIR/state.json' && touch '$DIR/status.json'" ||
-            die "split tunnel request not confirmed; run vpnctl status before retrying"
-        printf 'reverting to %s\n' "$SPLIT_PROFILE"
-        ;;
-    full|dev)
-        [[ $# -eq 2 ]] || die "full requires a lease length in minutes"
-        check_minutes "$2"
-        printf 'the full tunnel will drop this SSH session; Tailscale must\n' >&2
-        printf 'reconnect via DERP through the corporate egress\n\n' >&2
-        set_lease "$FULL_PROFILE" "$2"
-        ;;
-    renew)
-        mins="${2:-60}"
-        check_minutes "$mins"
-        state=$(remote "if test -f '$DIR/state.json'; then cat '$DIR/state.json'; fi") ||
-            die "could not read the active lease from $HOST"
-        [[ -n "$state" ]] || die "no active lease; already on the split tunnel"
-        profile=$(printf '%s' "$state" | jq -er '.profile | select(type == "string" and length > 0)') ||
-            die "invalid active lease"
-        set_lease "$profile" "$mins"
-        ;;
-    log)
-        lines="${2:-40}"
-        [[ "$lines" =~ ^[0-9]+$ ]] || die "line count must be a number: $lines"
-        remote "tail -n '$lines' '$DIR/vpnctl.log'" || die "no log yet"
-        ;;
-    -h|--help)
-        usage
-        ;;
-    *)
-        die "unknown command: $1"
-        ;;
-esac
+
+def cleanup():
+    old = read_json(RUNTIME / 'status.json', {})
+    try:
+        restore_proxy()
+    finally:
+        write_json(RUNTIME / 'status.json', {'enabled': False, 'phase': 'off', 'error': old.get('error', '')})
+        (RUNTIME / 'selection.json').unlink(missing_ok=True)
+
+
+class Shutdown(Exception):
+    pass
+
+
+class Gateway:
+    def __init__(self, c):
+        self.c = c
+        self.tunnel = None
+        self.server = None
+        self.body = b''
+        self.pac_text = ''
+
+    def start(self):
+        gateway = self
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path.split('?')[0] != '/proxy.pac':
+                    self.send_error(404)
+                    return
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/x-ns-proxy-autoconfig')
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Content-Length', str(len(gateway.body)))
+                self.end_headers()
+                self.wfile.write(gateway.body)
+            def log_message(self, *args):
+                pass
+        self.server = http.server.ThreadingHTTPServer(('127.0.0.1', self.c['pacPort']), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.tunnel = subprocess.Popen(ssh(self.c) + ['-N', '-D', f"127.0.0.1:{self.c['socksPort']}", self.c['host']], stdout=subprocess.DEVNULL)
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            if self.tunnel.poll() is not None:
+                raise RuntimeError('SSH proxy could not start')
+            try:
+                with socket.create_connection(('127.0.0.1', self.c['socksPort']), timeout=.3):
+                    return
+            except OSError:
+                time.sleep(.1)
+        raise RuntimeError('SSH proxy did not become ready')
+
+    def configure(self, profile):
+        text = pac(profile, self.c['socksPort'])
+        if text == self.pac_text:
+            return
+        self.body = text.encode()
+        saved = read_json(STATE / 'proxy-backup.json') or {'mode': gget('mode'), 'url': gget('autoconfig-url')}
+        url = f"'http://127.0.0.1:{self.c['pacPort']}/proxy.pac?{uuid.uuid4().hex}'"
+        saved['ownedUrl'] = url
+        write_json(STATE / 'proxy-backup.json', saved)
+        gset('autoconfig-url', url)
+        gset('mode', "'auto'")
+        self.pac_text = text
+
+    def stop(self):
+        if self.tunnel is not None:
+            self.tunnel.terminate()
+            try:
+                self.tunnel.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.tunnel.kill()
+                self.tunnel.wait()
+            self.tunnel = None
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+            self.server = None
+        self.pac_text = ''
+
+
+def worker():
+    c = config()
+    gateway = Gateway(c)
+    touched_remote = False
+    wanted = ''
+    ident = ''
+    selection_token = ''
+    error = ''
+    started = time.monotonic()
+    last_update = None
+    last_update_seen = time.monotonic()
+    def stop(*_):
+        raise Shutdown()
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    try:
+        restore_proxy()
+        write_json(RUNTIME / 'status.json', {'enabled': True, 'phase': 'connecting', 'profiles': []})
+        while True:
+            try:
+                remote = remote_status(c)
+                if remote.get('updated') != last_update:
+                    last_update = remote.get('updated')
+                    last_update_seen = time.monotonic()
+                elif time.monotonic() - last_update_seen > 15:
+                    raise ValueError('The Windows agent stopped updating status.')
+                if not remote['profiles']:
+                    raise ValueError('No VPN profiles are available on the host.')
+                selection = read_json(RUNTIME / 'selection.json', {})
+                if not wanted:
+                    choices = remote['profiles']
+                    wanted = next((p['id'] for p in choices if p['id'] in remote['connectedIds']),
+                                  next((p['id'] for p in choices if p.get('splitTunneling')), choices[0]['id']))
+                    selection_token = selection.get('token', '')
+                elif selection.get('token', '') != selection_token:
+                    wanted = selection['id']
+                    selection_token = selection['token']
+                    ident = ''
+                    gateway.stop()
+                profile = next((p for p in remote['profiles'] if p['id'] == wanted), None)
+                if profile is None:
+                    raise ValueError('Selected VPN profile is no longer available.')
+                if not ident:
+                    # Mark before the write: its SSH acknowledgement may be lost.
+                    touched_remote = True
+                    ident = request(c, True, wanted)
+                    started = time.monotonic()
+                ready = remote.get('requestId') == ident and remote.get('enabled') is True and remote.get('desiredId') == wanted and remote['connectedIds'] == [wanted] and not remote.get('error')
+                if ready:
+                    if gateway.tunnel is not None and gateway.tunnel.poll() is not None:
+                        gateway.stop()
+                    if gateway.tunnel is None:
+                        gateway.start()
+                    gateway.configure(profile)
+                elif gateway.tunnel is not None:
+                    gateway.stop()
+                if not ready and time.monotonic() - started > 60:
+                    raise ValueError(remote.get('error') or 'The host did not confirm the selected profile.')
+                write_json(RUNTIME / 'status.json', {'enabled': True, 'phase': 'connected' if ready else 'connecting',
+                           'profiles': remote['profiles'], 'selectedId': wanted, 'connectedIds': remote['connectedIds'],
+                           'error': remote.get('error', '')})
+                error = ''
+            except (subprocess.SubprocessError, OSError, ValueError, RuntimeError) as exc:
+                gateway.stop()
+                # Keep the owned PAC settings until cleanup, so matching requests
+                # cannot silently fall back to DIRECT during reconnect attempts.
+                error = str(exc)
+                previous = read_json(RUNTIME / 'status.json', {})
+                write_json(RUNTIME / 'status.json', dict(previous, enabled=True, phase='error', error=error))
+                # Initial incompatibility/config errors must not retry forever.
+                if not touched_remote:
+                    raise
+            time.sleep(3)
+    except Shutdown:
+        pass
+    except Exception as exc:
+        error = str(exc)
+    finally:
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        gateway.stop()
+        try:
+            restore_proxy()
+        except Exception:
+            error = 'Local proxy stopped, but system proxy settings could not be restored.'
+        if touched_remote:
+            try:
+                request(c, False)
+            except Exception:
+                error = 'Local VPN access is off; the host disconnect could not be confirmed.'
+        write_json(RUNTIME / 'status.json', {'enabled': False, 'phase': 'off', 'error': error})
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=['on', 'off', 'select', 'status', 'profiles', 'worker', 'cleanup'])
+    parser.add_argument('profile', nargs='?')
+    args = parser.parse_args()
+    if args.command == 'on':
+        config()  # Fail without starting anything when setup is missing.
+        write_json(RUNTIME / 'status.json', {'enabled': True, 'phase': 'connecting', 'profiles': []})
+        try:
+            run(['systemctl', '--user', 'start', UNIT])
+        except Exception:
+            cleanup()
+            raise
+    elif args.command == 'off':
+        # Stop before doing anything else, including reading configuration.
+        subprocess.run(['systemctl', '--user', 'stop', UNIT], check=True, timeout=65)
+        cleanup()
+    elif args.command == 'select':
+        s = read_json(RUNTIME / 'status.json', {})
+        if not s.get('enabled') or args.profile not in [p['id'] for p in s.get('profiles', [])]:
+            raise ValueError('Enable VPN access and choose an available profile first.')
+        write_json(RUNTIME / 'selection.json', {'id': args.profile, 'token': uuid.uuid4().hex})
+    elif args.command == 'worker':
+        worker()
+    elif args.command == 'cleanup':
+        cleanup()
+    else:
+        s = read_json(RUNTIME / 'status.json', {'enabled': False, 'phase': 'off'})
+        print(json.dumps(s.get('profiles', []) if args.command == 'profiles' else s))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        print(f'vpnctl: {exc}', file=sys.stderr)
+        sys.exit(1)

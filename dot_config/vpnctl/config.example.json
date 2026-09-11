@@ -1,6 +1,6 @@
 {
-  "host": "work-laptop-ssh-alias",
-  "directory": "/path/to/vpnctl-agent-state",
-  "splitProfile": "Your split tunnel profile",
-  "fullProfile": "Your full tunnel profile"
+  "host": "vpn-host-ssh-alias",
+  "directory": "/path/to/agent",
+  "socksPort": 1080,
+  "pacPort": 1081
 }

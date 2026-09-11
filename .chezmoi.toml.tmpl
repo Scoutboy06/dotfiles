@@ -1,7 +1,7 @@
 {{- $hostname := .chezmoi.hostname -}}
 {{- $isDesktop := or (eq $hostname "EliasPC") (eq $hostname "eliaspc") -}}
 {{- $isLaptop := or (eq $hostname "eliaslt") (eq $hostname "EliasLT") -}}
-{{- $isWorkLaptop := eq $hostname "HQ-LAP-103" -}}
+{{- $isWorkLaptop := eq (env "DOTFILES_DEVICE") "worklt" -}}
 {{- $isOmarchy := lookPath "omarchy" | not | not -}}
 
 {{- $device := "unknown" -}}

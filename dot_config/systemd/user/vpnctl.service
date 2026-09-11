@@ -1,0 +1,11 @@
+[Unit]
+Description=On-demand remote VPN proxy
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/vpnctl worker
+ExecStopPost=%h/.local/bin/vpnctl cleanup
+KillMode=mixed
+TimeoutStopSec=45
+Restart=no
+UMask=0077
