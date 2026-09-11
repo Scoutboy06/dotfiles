@@ -35,19 +35,24 @@ cd dotfiles
 
 ## Machines
 
-Machine detection lives in `.chezmoi.toml.tmpl`, keyed on hostname:
+Machine detection lives in `.chezmoi.toml.tmpl`, keyed on hostname, except under
+WSL where the Windows host is asked about itself:
 
 | Hostname | Device | Template variable |
 |----------|--------|-------------------|
 | `eliaspc` / `EliasPC` | Desktop | `.isDesktop` |
 | `eliaslt` / `EliasLT` | Laptop | `.isLaptop` |
-| Local `DOTFILES_DEVICE=worklt` opt-in | Work laptop | `.isWorkLaptop` |
+| WSL on a domain-joined Windows host | Work laptop | `.isWorkLaptop` |
 
-On WSL, `.winUser` is derived automatically by asking Windows which account runs
-the instance, and is used to reach Windows-side tooling. Set `DOTFILES_WINUSER`
-to override it, or to supply the name where that lookup cannot run. The value
-never enters this repository either way, and an empty result is supported: the
-templates using it degrade to doing nothing.
+On WSL both the work-laptop check and `.winUser` are derived by asking Windows
+about itself, so no machine or account names live in this repository. A
+domain-joined host is taken to be the work laptop, and `.winUser` is the account
+running the instance, used to reach Windows-side tooling.
+
+Neither needs configuring. Set `DOTFILES_DEVICE` to override the detection — any
+value other than `worklt` disables it — or `DOTFILES_WINUSER` to override the
+account name. Where the lookup cannot run, detection degrades to off and
+`.winUser` to empty, and the templates using them do nothing.
 
 Other template variables available in `.tmpl` files: `.device`, `.isOmarchy`, `.hasDE` (false on WSL/servers), `.monitorScale`, `.primaryMonitor`, `.editor`.
 
