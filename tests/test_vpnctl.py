@@ -150,6 +150,14 @@ class WorkerTests(unittest.TestCase):
         self.assert_stopped()
         self.assertFalse(json.loads((self.p/'remote.json').read_text())['enabled'])
 
+    def test_enable_adopts_the_profile_already_connected_on_the_host(self):
+        remote=json.loads((self.p/'remote.json').read_text())
+        remote.update(enabled=True,connectedIds=['user:b'])
+        (self.p/'remote.json').write_text(json.dumps(remote))
+        self.start()
+        state=self.until(lambda s:s.get('phase')=='connected')
+        self.assertEqual(state['selectedId'],'user:b')
+
     def test_occupied_socks_port_reports_an_error(self):
         with socket.socket() as listener:
             listener.bind(('127.0.0.1',self.ports[0]));listener.listen()

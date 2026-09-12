@@ -57,6 +57,14 @@ try {
     Assert ($script:operations.Count -eq $count) 'Repeated reconcile must be idempotent'
     $s = Send-Request 'two' $false ''
     Assert ($s.connectedIds.Count -eq 0 -and !$s.enabled) 'Off did not disconnect'
+    Assert (!(Test-Path $StateFile)) 'Off request was not consumed'
+    $script:connections[0].ConnectionStatus = 'Connected'
+    $count = $script:operations.Count
+    Invoke-Reconcile
+    $s = Get-Content $StatusFile -Raw | ConvertFrom-Json
+    Assert ($script:operations.Count -eq $count) 'Missing state changed a manually connected VPN'
+    Assert ($s.connectedIds.Count -eq 1 -and $s.connectedIds[0] -eq 'user:Example A') 'Manual VPN was not published'
+    $script:connections[0].ConnectionStatus = 'Disconnected'
     $s = Send-Request 'bad' $true 'missing'
     Assert ($s.error -ne '') 'Unknown profile accepted'
     Assert ($s.connectedIds.Count -eq 0) 'Invalid request changed connections'
@@ -69,7 +77,7 @@ try {
     Invoke-Reconcile
     $s = Get-Content $StatusFile -Raw | ConvertFrom-Json
     Assert ($s.error -like 'Legacy*') 'Legacy request was not rejected'
-    Write-Output 'PASS: discovery, device-tunnel filtering, startup preservation, connect/switch/off, idempotence, unknown profile rejection, routing metadata, legacy rejection, atomic JSON arrays.'
+    Write-Output 'PASS: discovery, device-tunnel filtering, startup preservation, connect/switch/one-shot off, manual connection preservation, idempotence, unknown profile rejection, routing metadata, legacy rejection, atomic JSON arrays.'
 } finally {
     Remove-Item $Root -Recurse -Force
 }

@@ -6,13 +6,17 @@ in `config.json` beside the agent, which is ignored by Git.
 
 ## Upgrade to protocol 2
 
-Stop the running `vpnctl-agent` task, replace `vpnctl-agent.ps1`, then start the
-task again. No task reinstallation is necessary. The new agent ignores legacy
-state requests; do not leave the old agent running alongside it. The Linux
-client refuses older status formats before changing any VPN state.
+Stop the resident agent process, replace `vpnctl-agent.ps1`, then start the task
+again. No task reinstallation is necessary. The scheduled task only launches a
+detached hidden process, so `Stop-ScheduledTask` alone does not stop the agent.
+The new agent ignores legacy state requests; do not leave the old agent running
+alongside it. The Linux client refuses older status formats before changing any
+VPN state.
 
 ```powershell
-Stop-ScheduledTask -TaskName vpnctl-agent
+Get-CimInstance Win32_Process |
+  Where-Object { $_.Name -eq 'powershell.exe' -and $_.CommandLine -like '*-File*vpnctl-agent.ps1*' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 # Copy the updated vpnctl-agent.ps1 into the existing agent directory here.
 Start-ScheduledTask -TaskName vpnctl-agent
 ```
@@ -59,12 +63,14 @@ array), and `error`. Linux atomically replaces `state.json` with a request:
 {"version":2,"id":"unique-request-id","enabled":true,"profileId":"user:Example VPN"}
 ```
 
-With `enabled: false`, the agent disconnects discovered VPN profiles. With
-`enabled: true`, it disconnects other profiles and connects the selected one.
-There is no lease, expiry, tailnet watchdog, or automatic profile fallback.
-The requested state remains until another request changes it. Windows policy
-may prevent disconnecting; errors and actual connected ids remain visible.
-Missing state does not disconnect a VPN that was started independently.
+With `enabled: false`, the agent disconnects discovered VPN profiles, then
+removes the consumed request and returns control to Windows. A VPN subsequently
+started on Windows remains connected and is adopted on the next Linux enable.
+With `enabled: true`, the agent disconnects other profiles and keeps the selected
+one connected until another request changes it. There is no lease, expiry,
+tailnet watchdog, or automatic profile fallback. Windows policy may prevent
+disconnecting; errors and actual connected ids remain visible. Missing state
+does not disconnect a VPN that was started independently.
 
 Disabling Linux immediately tears down local proxy access and attempts a
 bounded host disconnect. If the host is unreachable, local access still stops,

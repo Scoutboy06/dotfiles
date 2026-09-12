@@ -121,6 +121,10 @@ function Invoke-Reconcile {
             }
             if ($enabled -and !$target[0].connected) { Invoke-Dial $target[0] $false }
             $profiles = @(Get-Profiles)
+            # Off is a one-shot request. Once every profile is disconnected,
+            # return control to Windows so a later manual connection survives
+            # and can be adopted by the next Linux enable request.
+            if (!$enabled) { Remove-Item $StateFile -Force }
         }
     } catch {
         $errorText = $_.Exception.Message
