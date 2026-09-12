@@ -69,6 +69,16 @@ def ssh(c):
             '-o', 'ControlMaster=no', '-o', 'ControlPath=none', '-o', 'ExitOnForwardFailure=yes']
 
 
+def suspend_clock_offset():
+    """Time spent suspended, relative to the monotonic clock."""
+    return time.clock_gettime(time.CLOCK_BOOTTIME) - time.monotonic()
+
+
+def detect_resume(previous):
+    current = suspend_clock_offset()
+    return current, current - previous > 1
+
+
 def remote_status(c):
     text = run(ssh(c) + [c['host'], 'cat ' + shlex.quote(c['directory'] + '/status.json')])
     s = json.loads(text.lstrip('\ufeff'))
@@ -168,6 +178,9 @@ class Gateway:
 
     def start(self):
         with socket.socket() as probe:
+            # Permit immediate profile switches while connections from the old
+            # listener remain in TIME_WAIT. An active listener still blocks bind.
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 probe.bind(('127.0.0.1', self.c['socksPort']))
             except OSError as exc:
@@ -240,6 +253,7 @@ def worker():
     started = time.monotonic()
     last_update = None
     last_update_seen = time.monotonic()
+    suspend_offset = suspend_clock_offset()
     def stop(*_):
         raise Shutdown()
     signal.signal(signal.SIGTERM, stop)
@@ -249,6 +263,12 @@ def worker():
         write_json(RUNTIME / 'status.json', {'enabled': True, 'phase': 'connecting', 'profiles': []})
         while True:
             try:
+                suspend_offset, resumed = detect_resume(suspend_offset)
+                if resumed:
+                    # A listening SSH process can retain a dead pre-suspend TCP
+                    # connection. Rebuilding it also rotates the PAC URL so
+                    # applications discard cached proxy failures after resume.
+                    gateway.stop()
                 remote = remote_status(c)
                 if remote.get('updated') != last_update:
                     last_update = remote.get('updated')

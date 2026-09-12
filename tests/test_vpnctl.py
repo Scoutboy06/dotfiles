@@ -55,6 +55,13 @@ class RoutingTests(unittest.TestCase):
                 vpn.restore_proxy()
                 setter.assert_not_called()
 
+    def test_resume_detection_uses_time_excluded_from_monotonic_clock(self):
+        with patch.object(vpn, 'suspend_clock_offset', side_effect=[10.2, 13.2]):
+            offset, resumed = vpn.detect_resume(10)
+            self.assertFalse(resumed)
+            offset, resumed = vpn.detect_resume(offset)
+            self.assertTrue(resumed)
+
 
 MOCK_SSH = r'''#!/usr/bin/env python3
 import json, os, pathlib, signal, socket, sys, time
