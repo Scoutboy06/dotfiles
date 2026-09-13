@@ -38,6 +38,16 @@ Item {
     onLoadFailed: vpn.state = ({enabled: false, phase: "off"})
   }
 
+  // vpnctl publishes with an atomic rename. A QFileSystemWatcher can stop
+  // following the path when that swaps the inode, leaving one screen stale.
+  // Retrying the local read keeps every per-screen service converged.
+  Timer {
+    interval: 1000
+    repeat: true
+    running: true
+    onTriggered: statusFile.reload()
+  }
+
   Process {
     id: action
     stderr: StdioCollector { id: actionError }
