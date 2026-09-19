@@ -4,7 +4,7 @@
   "name": "My Workspaces",
   "version": "1.0.0",
   "author": "Elias",
-  "description": "Persistent and special Hyprland workspace indicators",
+  "description": "Persistent, named, and special Hyprland workspace indicators",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "My Workspaces",
-    "description": "Persistent and special Hyprland workspace indicators",
+    "description": "Persistent, named, and special Hyprland workspace indicators",
     "category": "Compositor",
     "allowMultiple": false
   },

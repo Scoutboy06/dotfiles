@@ -31,6 +31,20 @@ BarWidget {
     return ids
   }
 
+  function namedWorkspaces() {
+    var workspaces = []
+    var values = Hyprland.workspaces.values
+
+    for (var i = 0; i < values.length; i++) {
+      var workspace = values[i]
+      if (workspace.id >= 0 || workspace.name.indexOf("special:") === 0) continue
+      workspaces.push(workspace)
+    }
+
+    workspaces.sort(function(left, right) { return left.name.localeCompare(right.name) })
+    return workspaces
+  }
+
   function specialWorkspaces() {
     var workspaces = []
     var values = Hyprland.workspaces.values
@@ -56,9 +70,10 @@ BarWidget {
     return workspaces
   }
 
-  function specialWorkspaceLabel(name) {
+  function workspaceLabel(name) {
     var labels = {
       music: "m",
+      series: "s",
       vesktop: "d",
       terminal: "ö",
       scratchpad: "s"
@@ -69,6 +84,12 @@ BarWidget {
   function focusWorkspace(id) {
     if (!root.bar) return
     root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
+  }
+
+  function focusNamedWorkspace(name) {
+    if (!root.bar) return
+    var selector = "name:" + name
+    root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = " + JSON.stringify(selector) + " })"))
   }
 
   function toggleSpecialWorkspace(name) {
@@ -100,7 +121,7 @@ BarWidget {
     id: grid
     anchors.fill: parent
     anchors.rightMargin: root.trailingGap
-    columns: root.vertical ? 1 : root.workspaceIds().length + root.specialWorkspaces().length
+    columns: root.vertical ? 1 : root.workspaceIds().length + root.namedWorkspaces().length + root.specialWorkspaces().length
     columnSpacing: root.vertical ? 0 : Style.space(1)
     rowSpacing: root.vertical ? Style.space(2) : 0
 
@@ -126,6 +147,26 @@ BarWidget {
     }
 
     Repeater {
+      model: root.namedWorkspaces()
+
+      WidgetButton {
+        required property var modelData
+
+        readonly property bool selected: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.name === modelData.name
+
+        bar: root.bar
+        text: selected ? "\uDB85\uDCFB" : root.workspaceLabel(modelData.name)
+        opacity: modelData.toplevels.values.length > 0 || selected ? 1 : 0.5
+        horizontalMargin: 6
+        verticalPadding: 6
+        fixedWidth: root.vertical ? root.barSize : Style.space(20)
+        fixedHeight: root.barSize
+        tooltipText: modelData.name
+        onPressed: function() { root.focusNamedWorkspace(modelData.name) }
+      }
+    }
+
+    Repeater {
       model: root.specialWorkspaces()
 
       WidgetButton {
@@ -135,7 +176,7 @@ BarWidget {
         readonly property bool selected: modelData.name === root.activeSpecial
 
         bar: root.bar
-        text: selected ? "\uDB85\uDCFB" : root.specialWorkspaceLabel(specialName)
+        text: selected ? "\uDB85\uDCFB" : root.workspaceLabel(specialName)
         opacity: modelData.toplevels.values.length > 0 || selected ? 1 : 0.5
         horizontalMargin: 6
         verticalPadding: 6
