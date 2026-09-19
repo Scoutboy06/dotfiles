@@ -8,13 +8,17 @@ hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@74.97", position = "0x0", sc
 hl.monitor({ output = "DP-1", mode = "2560x1440@179.88", position = "1920x0", scale = 1.25 })
 
 -- Keep odd-numbered workspaces on the primary display and even-numbered
--- workspaces on the secondary display.
+-- workspaces on the secondary display in normal mode. The series-mode toggle
+-- overrides these rules from ~/.local/state/omarchy/toggles/hypr/.
 for workspace = 1, 10 do
   hl.workspace_rule({
     workspace = tostring(workspace),
     monitor = workspace % 2 == 1 and "DP-1" or "HDMI-A-1",
   })
 end
+
+-- The isolated series browser always has a stable home on the 1080p display.
+hl.workspace_rule({ workspace = "name:series", monitor = "HDMI-A-1" })
 {{- else if .isLaptop }}
 -- Laptop: use fractional scaling on the built-in display and auto-configure
 -- external displays at scale 1.

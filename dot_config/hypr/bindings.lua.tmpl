@@ -7,6 +7,12 @@ o.bind("SUPER + SHIFT + RETURN", "Tmux", "omarchy launch terminal tmux")
 -- Additional application binding not provided by Omarchy's defaults.
 o.bind("CTRL + SHIFT + ESCAPE", "Activity", "omarchy launch tui btop")
 
+{{- if .isDesktop }}
+-- SUPER + SHIFT + S is Omarchy's Google Maps binding by default.
+hl.unbind("SUPER + SHIFT + S")
+o.bind("SUPER + SHIFT + S", "Toggle series mode", "hypr-workspace-mode toggle")
+{{- end }}
+
 -- Special workspace toggles.
 o.bind("SUPER + D", "Vesktop workspace", hl.dsp.workspace.toggle_special("vesktop"))
 o.bind("SUPER + M", "Music workspace", hl.dsp.workspace.toggle_special("music"))
