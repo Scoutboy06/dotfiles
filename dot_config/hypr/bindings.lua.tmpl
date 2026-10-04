@@ -37,3 +37,7 @@ o.bind("SUPER + H", "Focus left", hl.dsp.focus({ direction = "l" }))
 o.bind("SUPER + J", "Focus down", hl.dsp.focus({ direction = "d" }))
 o.bind("SUPER + K", "Focus up", hl.dsp.focus({ direction = "u" }))
 o.bind("SUPER + L", "Focus right", hl.dsp.focus({ direction = "r" }))
+
+-- Vim-style navigation within a window group.
+o.bind("SUPER + ALT + H", "Previous window in group", hl.dsp.group.prev())
+o.bind("SUPER + ALT + L", "Next window in group", hl.dsp.group.next())
