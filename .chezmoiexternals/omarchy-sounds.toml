@@ -1,0 +1,15 @@
+{{ if .isOmarchy }}
+# Change these commit pins deliberately when upgrading. Keep setup in sync.
+[".config/omarchy/plugins/dielerorn.system-sounds"]
+    type = "archive"
+    url = "https://github.com/Dielerorn/omarchy-system-sounds/archive/ab4b1ed6e622682b122940ca74a2abcfa381facf.tar.gz"
+    stripComponents = 1
+    exact = false
+
+[".local/share/sounds/yaru"]
+    type = "archive"
+    url = "https://github.com/ubuntu/yaru/archive/7f18973e05607c609c4b972f0dd9bff36fa2a13e.tar.gz"
+    stripComponents = 3
+    include = ["*/sounds/src/stereo/**"]
+    exact = false
+{{ end }}

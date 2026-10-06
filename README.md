@@ -122,3 +122,25 @@ The install scripts are `run_onchange_` — editing any package YAML re-runs the
 - `~/.config/mimeapps.list` is partially managed by `modify_mimeapps.list.tmpl`; edit its tracked defaults in `.chezmoidata/mimeapps.yaml`.
 - Merge conflicts open in VS Code via the custom `[merge]` command in `.chezmoi.toml.tmpl`.
 - Hyprland configs originally adapted from [Omarchy](https://github.com/basecamp/omarchy).
+
+## Omarchy system sounds
+
+On Omarchy machines, chezmoi downloads pinned System Sounds plugin and Yaru
+audio archives configured in `.chezmoiexternals/omarchy-sounds.toml`. Audio
+files and upstream plugin code are not stored in this repository. Yaru is
+installed under the lowercase `~/.local/share/sounds/yaru` directory; its
+`index.theme` and the sound settings are managed as ordinary dotfiles. The
+default theme is Yaru, with the startup sound disabled. Other installed sound
+themes are left in place.
+
+Run `chezmoi apply` from an active Omarchy desktop session. The after script
+links `omarchy-sounds`, installs the startup hook, and creates/patches a
+user-owned Audio panel clone through the plugin's setup command. The panel
+clone is generated locally rather than checked into Git, and does not receive
+upstream Omarchy panel changes automatically. Setup fails with a retry message
+when there is no active shell.
+
+To upgrade the plugin or Yaru, edit the commit pin in the external definition,
+preview `chezmoi diff`, then run `chezmoi apply`. The setup script hashes that
+definition and reruns when the pins change. Use this process rather than
+`omarchy plugin update` for the pinned System Sounds plugin.

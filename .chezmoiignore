@@ -26,3 +26,8 @@ windows/
 .config/systemd/user/battery-monitor.service
 .config/systemd/user/battery-monitor.timer
 {{ end }}
+
+{{ if not .isOmarchy }}
+.local/share/sounds/yaru/
+.config/omarchy/sounds.json
+{{ end }}

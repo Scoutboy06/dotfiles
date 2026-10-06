@@ -56,7 +56,7 @@
           "id": "omarchy.network"
         },
         {
-          "id": "omarchy.audio"
+          "id": "elias.audio"
         },
         {
           "id": "omarchy.monitor"
@@ -73,6 +73,10 @@
     "lock": 2400,
     "screensaver": 2400
   },
-  "plugins": [],
+  "plugins": [
+    {
+      "id": "dielerorn.system-sounds"
+    }
+  ],
   "version": 1
 }

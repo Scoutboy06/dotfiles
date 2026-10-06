@@ -1,0 +1,27 @@
+{{ if .isOmarchy -}}
+#!/bin/bash
+set -euo pipefail
+# External pins: {{ include ".chezmoiexternals/omarchy-sounds.toml" | sha256sum }}
+
+log_info() { printf '\033[0;32m[INFO]\033[0m %s\n' "$*"; }
+log_success() { printf '\033[0;34m[✓]\033[0m %s\n' "$*"; }
+log_error() { printf '\033[0;31m[ERROR]\033[0m %s\n' "$*" >&2; }
+
+if (( EUID == 0 )); then
+    log_error "Run this as your desktop user, not root."
+    exit 1
+fi
+
+# The official clone command needs a live shell to discover and enable the
+# cloned panel. Fail before partial setup so chezmoi retries on the next apply.
+if ! omarchy-shell shell ping >/dev/null 2>&1; then
+    log_error "Run chezmoi apply from an active Omarchy desktop session to finish system-sounds setup."
+    exit 1
+fi
+
+plugin="$HOME/.config/omarchy/plugins/dielerorn.system-sounds"
+log_info "Setting up System Sounds and the Audio panel"
+omarchy-shell shell rescanPlugins >/dev/null
+"$plugin/bin/omarchy-sounds" setup --yes
+log_success "System Sounds is configured; the shell reloads plugin changes automatically."
+{{ end -}}

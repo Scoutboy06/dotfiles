@@ -1,0 +1,6 @@
+{
+  "theme": "yaru",
+  "events": {
+    "startup": false
+  }
+}
