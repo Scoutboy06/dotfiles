@@ -1,0 +1,11 @@
+[tools]
+claude = "latest"
+codex = "latest"
+gh = "latest"
+python = "latest"
+
+[settings]
+quiet = true
+
+[settings.upgrade]
+auto_prune = false
