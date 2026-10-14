@@ -1,0 +1,18 @@
+# User-local AppImages installed by the run_onchange_after hook.
+# Required: name, device, environment, github_repo, version, assets, desktop.
+# assets supports x86_64 and aarch64, each with filename and sha256.
+# Pin release tags and SHA-256 digests from the upstream GitHub release API.
+# Missing architectures are skipped. Update version, filename and hash together.
+packages:
+  - name: orca
+    device: all
+    environment: desktop
+    github_repo: stablyai/orca
+    version: v1.4.221
+    assets:
+      x86_64:
+        filename: orca-linux.AppImage
+        sha256: 7bf17b3619c2a4f2346b1894c652e2790b89277e501a78ce8911249a5e12f0f6
+    desktop:
+      name: Orca
+      categories: Development;IDE;

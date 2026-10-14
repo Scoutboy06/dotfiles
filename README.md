@@ -81,9 +81,26 @@ Package definitions live in `.packages/`, one YAML per manager, with entries fil
 | `packages-apt.yaml` | apt (Debian/Ubuntu) |
 | `packages-bun.yaml` | bun (global packages) |
 | `packages-winget.yaml` | winget (Windows) |
+| `packages-appimage.yaml` | verified upstream AppImages (Linux, user-local) |
 | `custom-arch-packages.yaml` | makepkg from remote PKGBUILDs (Arch only) |
 
 The install scripts are `run_onchange_` — editing any package YAML re-runs them on the next `chezmoi apply`.
+
+AppImages are pinned by release tag and SHA-256 in `packages-appimage.yaml`.
+The installer supports `x86_64` and `aarch64` asset entries, skips missing
+architectures, and verifies downloads before replacing an existing executable.
+Binaries live in `~/.local/share/appimages/<name>/`, commands in `~/.local/bin/`,
+and launcher entries in `~/.local/share/applications/`. Binaries are not committed.
+Launchers use the theme's generic development icon.
+
+To upgrade, select an upstream release and update the tag, asset filename and
+SHA-256 together. GitHub's release API exposes the asset hash as `digest`:
+`https://api.github.com/repos/stablyai/orca/releases/tags/<tag>`.
+Use the `sha256:` value without its prefix. Then preview with `chezmoi diff`
+and run `chezmoi apply`. A pinned hash detects corruption or replacement of a
+release asset; it does not independently authenticate the publisher. Removing
+an entry does not uninstall it; remove its binary directory, symlink and desktop
+entry explicitly.
 
 ## What's configured
 
