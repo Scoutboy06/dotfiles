@@ -47,6 +47,12 @@ export VISUAL="$EDITOR"
 export PAGER="${PAGER:-less}"
 export LESS='-R --mouse --wheel-lines=3'
 
+{{ if .isOmarchy -}}
+# Ring the terminal bell when sudo needs a password, including inside scripts.
+export SUDO_PROMPT=$'\a[sudo] password for %p: '
+
+{{ end -}}
+
 # XDG directories
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"

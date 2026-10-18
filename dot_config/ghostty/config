@@ -18,6 +18,9 @@ gtk-toolbar-style = flat
 cursor-style = "block"
 cursor-style-blink = false
 
+# Let the system-sounds plugin play the current theme's bell sound.
+bell-features = system,no-audio
+
 # Cursor styling + SSH session terminfo
 # (all shell integration options must be passed together)
 shell-integration-features = no-cursor,ssh-env
