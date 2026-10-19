@@ -4,7 +4,7 @@ codex = "latest"
 gh = "latest"
 go = "1.27.0"
 java = "latest"
-opencode = "latest"
+opencode = { version = "latest", allow_builds = ["@opencode/cli"] }
 pi = "latest"
 python = "latest"
 
