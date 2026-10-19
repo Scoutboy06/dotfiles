@@ -9,7 +9,7 @@ import Quickshell.Io
 // and take over if the leader goes away. Everyone reads state from the file.
 Item {
   id: speak
-  readonly property string bin: "/home/elias/.local/bin/speak"
+  readonly property string bin: "speak"
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
   readonly property string stateFile: runtimeDir + "/elias.speak.state.json"
   property string state: "off"

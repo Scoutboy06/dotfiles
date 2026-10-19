@@ -1,0 +1,18 @@
+{{ if .isOmarchy -}}
+#!/bin/bash
+set -euo pipefail
+# Rebuilds when the ~/p/speak checkout (from .chezmoiexternals/speak.toml) moves.
+# speak HEAD: {{ $git := joinPath .chezmoi.homeDir "p/speak/.git" }}{{ if stat $git }}{{ output "git" "-C" (joinPath .chezmoi.homeDir "p/speak") "rev-parse" "HEAD" | trim }}{{ end }}
+
+src="$HOME/p/speak"
+[[ -x "$src/install.sh" ]] || exit 0
+
+# Go comes from mise, whose shims may not be on PATH during chezmoi apply.
+if command -v mise >/dev/null 2>&1; then
+    mise exec go -- "$src/install.sh"
+elif command -v go >/dev/null 2>&1; then
+    "$src/install.sh"
+else
+    echo "[WARN] go not found — skipping speak install" >&2
+fi
+{{ end -}}

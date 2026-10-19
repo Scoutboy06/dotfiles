@@ -1,0 +1,6 @@
+{{ if .isOmarchy }}
+# Working copy of the speak text-to-speech daemon; built by run_onchange_after_install-speak.
+["p/speak"]
+    type = "git-repo"
+    url = "git@github.com:Scoutboy06/speak.git"
+{{ end }}
