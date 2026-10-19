@@ -124,11 +124,12 @@ alias lg='lazygit'
 alias v='nvim'
 alias vim='nvim'
 alias svim='sudo -E nvim'
-# Make zed and zeditor interchangeable regardless of which binary is installed
-if command -v zeditor &>/dev/null; then
-  alias zed='zeditor'
-elif command -v zed &>/dev/null; then
+# Make zed and zeditor interchangeable regardless of which binary is installed.
+# Prefer zed (official build) since distro zeditor builds can lack a matching remote server.
+if command -v zed &>/dev/null; then
   alias zeditor='zed'
+elif command -v zeditor &>/dev/null; then
+  alias zed='zeditor'
 fi
 # Debian/Ubuntu ship bat as batcat (name clash with another package)
 if ! command -v bat &>/dev/null && command -v batcat &>/dev/null; then
