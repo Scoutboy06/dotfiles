@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "elias.speak",
+  "name": "Speech",
+  "version": "1.0.0",
+  "description": "Controls for the local speak text-to-speech daemon.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Panel.qml" },
+  "barWidget": {
+    "displayName": "Speech",
+    "category": "Media",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

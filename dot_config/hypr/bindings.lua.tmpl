@@ -6,6 +6,7 @@ o.bind("SUPER + SHIFT + RETURN", "Tmux", "omarchy launch terminal tmux")
 
 -- Additional application binding not provided by Omarchy's defaults.
 o.bind("CTRL + SHIFT + ESCAPE", "Activity", "omarchy launch tui btop")
+o.bind("SUPER + PERIOD", "Emojis", "omarchy-shell shell toggle omarchy.emojis")
 
 {{- if .isDesktop }}
 -- SUPER + SHIFT + S is Omarchy's Google Maps binding by default.
@@ -41,3 +42,9 @@ o.bind("SUPER + L", "Focus right", hl.dsp.focus({ direction = "r" }))
 -- Vim-style navigation within a window group.
 o.bind("SUPER + ALT + H", "Previous window in group", hl.dsp.group.prev())
 o.bind("SUPER + ALT + L", "Next window in group", hl.dsp.group.next())
+
+-- Text-to-speech (speak)
+o.bind("SUPER + ALT + P", "Speech play/pause", "/home/elias/.local/bin/speak toggle")
+o.bind("SUPER + ALT + PERIOD", "Speech faster", "/home/elias/.local/bin/speak faster", { repeating = true })
+o.bind("SUPER + ALT + MINUS", "Speech slower", "/home/elias/.local/bin/speak slower", { repeating = true })
+o.bind("SUPER + ALT + BACKSPACE", "Speech stop", "/home/elias/.local/bin/speak stop")
