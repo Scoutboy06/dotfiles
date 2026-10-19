@@ -1,0 +1,18 @@
+{{ if .isOmarchy -}}
+#!/bin/bash
+set -euo pipefail
+# Installs etapp once from the ~/p/etapp checkout (.chezmoiexternals/etapp.toml):
+# the binary, the elias.etapp shell plugin and the etapp agent skill.
+
+src="$HOME/p/etapp"
+[[ -x "$src/install.sh" ]] || exit 0
+
+# Go comes from mise, whose shims may not be on PATH during chezmoi apply.
+if command -v mise >/dev/null 2>&1; then
+    mise exec go -- "$src/install.sh"
+elif command -v go >/dev/null 2>&1; then
+    "$src/install.sh"
+else
+    echo "[WARN] go not found — skipping etapp install" >&2
+fi
+{{ end -}}
