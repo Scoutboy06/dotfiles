@@ -1,0 +1,43 @@
+{{ if .isOmarchy -}}
+#!/usr/bin/env bash
+set -euo pipefail
+
+log_info() { printf '\033[0;32m[INFO]\033[0m %s\n' "$*"; }
+log_success() { printf '\033[0;34m[✓]\033[0m %s\n' "$*"; }
+log_error() { printf '\033[0;31m[ERROR]\033[0m %s\n' "$*" >&2; }
+
+if (( EUID == 0 )); then
+    log_error "Run this as your desktop user, not root."
+    exit 1
+fi
+
+hook=/etc/pacman.d/hooks/spicetify.hook
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+
+# Spotify updates replace /opt/spotify with root-owned files and wipe the
+# spicetify patches. Restore write access, then re-apply as the desktop user
+# (spicetify's config lives in $HOME). Never fail the pacman transaction.
+cat > "$workdir/spicetify.hook" <<'EOF'
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = spotify
+
+[Action]
+Description = Re-applying spicetify to Spotify...
+When = PostTransaction
+Depends = spicetify-cli
+Exec = /usr/bin/sh -c 'chmod a+wr /opt/spotify && chmod -R a+wr /opt/spotify/Apps && runuser -u {{ .chezmoi.username }} -- env HOME={{ .chezmoi.homeDir }} sh -c "yes | spicetify -n -q backup apply" || true'
+EOF
+
+if cmp -s "$workdir/spicetify.hook" "$hook"; then
+    log_success "Spicetify pacman hook is already installed"
+    exit 0
+fi
+
+log_info "Installing spicetify pacman hook to $hook"
+sudo install -Dm644 "$workdir/spicetify.hook" "$hook"
+log_success "Spicetify will be re-applied automatically after Spotify updates"
+{{ end -}}
