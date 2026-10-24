@@ -1,0 +1,24 @@
+{{ if and (eq .chezmoi.os "linux") (eq .device "eliaspc") (not .isWSL) }}#!/usr/bin/env bash
+set -euo pipefail
+
+log_info() { printf '\033[0;34m[INFO]\033[0m %s\n' "$*"; }
+log_success() { printf '\033[0;32m[OK]\033[0m %s\n' "$*"; }
+log_error() { printf '\033[0;31m[ERROR]\033[0m %s\n' "$*" >&2; }
+
+if (( EUID == 0 )); then
+    log_error "Run as your normal user, not root."
+    exit 1
+fi
+
+if ! command -v ufw >/dev/null 2>&1; then
+    log_error "UFW must be installed before configuring Steam LAN transfers."
+    exit 1
+fi
+
+# Desktop's trusted home LAN only. Update these if its network changes.
+# UFW's allow command is idempotent: existing rules are not duplicated.
+log_info "Allowing Steam LAN transfers on enp5s0 from 192.168.50.0/24."
+sudo ufw allow in on enp5s0 from 192.168.50.0/24 to any port 27040 proto tcp comment 'Steam LAN transfers'
+sudo ufw allow in on enp5s0 from 192.168.50.0/24 to any port 27031:27036 proto udp comment 'Steam LAN discovery'
+log_success "Steam LAN firewall rules configured (firewall enablement unchanged)."
+{{ end }}

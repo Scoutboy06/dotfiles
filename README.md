@@ -136,6 +136,7 @@ entry explicitly.
 ## Notes
 
 - Local zsh overrides go in `~/.zshrc.local` (not tracked).
+- Steam LAN transfer firewall rules are configured once on the Linux desktop (`eliaspc`) only, excluding WSL. The setup script allows TCP 27040 and UDP 27031–27036 via UFW, restricted to `enp5s0` and trusted subnet `192.168.50.0/24`; update `.chezmoiscripts/run_once_after_enable-steam-lan-ports.sh.tmpl` if the home network changes. It does not enable UFW or replace existing firewall rules.
 - `~/.config/mimeapps.list` is partially managed by `modify_mimeapps.list.tmpl`; edit its tracked defaults in `.chezmoidata/mimeapps.yaml`.
 - Merge conflicts open in VS Code via the custom `[merge]` command in `.chezmoi.toml.tmpl`.
 - Hyprland configs originally adapted from [Omarchy](https://github.com/basecamp/omarchy).
