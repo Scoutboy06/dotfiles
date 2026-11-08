@@ -22,7 +22,7 @@ hl.workspace_rule({ workspace = "name:series", monitor = "HDMI-A-1" })
 {{- else if .isLaptop }}
 -- Laptop: use fractional scaling on the built-in display and auto-configure
 -- external displays at scale 1.
-hl.env("GDK_SCALE", "1.25")
+hl.env("GDK_SCALE", "1")
 hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = {{ .monitorScale }} })
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 {{- else }}
