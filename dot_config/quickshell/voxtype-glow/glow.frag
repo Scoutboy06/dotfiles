@@ -37,7 +37,7 @@ void main() {
     vec2 uv = p / 260.0;
     float n = noise(vec3(uv + vec2(phase * 0.3, -phase * 0.2), phase * 0.4));
     float detail = noise(vec3(uv * 2.2 - phase * 0.2, phase * 0.3));
-    float reach = 10.0 + 27.0 * n + 9.0 * detail;
+    float reach = 0.28 * (10.0 + 27.0 * n + 9.0 * detail);
     float outwardReach = 3.0 + 5.0 * n + 2.0 * detail;
     float distanceFromBorder = sdf < 0.0 ? -sdf / reach : sdf / outwardReach;
     float band = 1.0 - smoothstep(0.25, 1.0, distanceFromBorder);
