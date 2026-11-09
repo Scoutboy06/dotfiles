@@ -20,3 +20,5 @@ hl.config({
 
 -- Keep the focused window fully opaque while retaining inactive transparency.
 o.window({ focus = true }, { opacity = "1 override" })
+
+require("hypr.voxtype-border")

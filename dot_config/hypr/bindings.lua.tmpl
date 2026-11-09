@@ -48,3 +48,10 @@ o.bind("SUPER + ALT + P", "Speech play/pause", "speak toggle")
 o.bind("SUPER + ALT + PERIOD", "Speech faster", "speak faster", { repeating = true })
 o.bind("SUPER + ALT + MINUS", "Speech slower", "speak slower", { repeating = true })
 o.bind("SUPER + ALT + BACKSPACE", "Speech stop", "speak stop")
+
+-- Dictation keys from before Alt + Space and Right Alt became the defaults.
+-- Remove these lines to give the keys back to applications.
+if o.dictation_installed and o.dictation_installed() then
+  o.bind("SUPER + CTRL + X", "Toggle dictation", "omarchy-dictation toggle")
+  o.bind_hold("F9", "Start dictation (push-to-talk)", "omarchy-dictation start", "Stop dictation (push-to-talk)", "omarchy-dictation stop")
+end

@@ -1,0 +1,37 @@
+#!/usr/bin/python3
+"""Conservative local Voxtype cleanup: stdin in, cleaned text out.
+
+No models, network access, files or background processes. Leave quoted/literal
+text alone; remove initial uh/um/eh and resolve simple explicit numeric repairs.
+Compound, signed and decimal quantities are deliberately left untouched.
+"""
+import re
+import sys
+
+TOKEN = re.compile("[\\w]+(?:['’][\\w]+)*", re.UNICODE)
+
+NUM = 'zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand noll ett två tre fyra fem sex sju åtta nio tio femton femtio'.split()
+
+STRICT_CORRECTION = re.compile('\\b(' + '|'.join(NUM) + '|\\d+)\\s*[, ]+(?:no I mean|nej jag menar)\\s*[, ]+(' + '|'.join(NUM) + '|\\d+)\\b', re.I)
+
+def replace_number_correction(match):
+    source = match.string
+    before = source[:match.start()]
+    after = source[match.end():]
+    preceding = TOKEN.findall(before.casefold())
+    following = TOKEN.findall(after.casefold())
+    connectors = set(NUM) | {'and', 'point', 'minus', 'negative', 'plus', 'punkt', 'komma', 'och'}
+    if before and before[-1] in './-+' or (after and after[0] in '/-+') or re.match('\\.\\d', after):
+        return match.group(0)
+    if preceding and preceding[-1] in connectors or (following and following[0] in connectors):
+        return match.group(0)
+    return match.group(2)
+
+def lite(text):
+    if any((c in text for c in ['`', '"'])) or re.search('(?i)\\b(?:named|literal|called)\\b', text):
+        return text
+    text = STRICT_CORRECTION.sub(replace_number_correction, text)
+    return re.sub('(?i)(^|(?<=[.!?])\\s+)(?:(?:uh|um|eh)\\b[, ]*)+', lambda m: m.group(1), text)
+
+if __name__ == "__main__":
+    sys.stdout.write(lite(sys.stdin.read()))
