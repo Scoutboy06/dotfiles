@@ -2,6 +2,10 @@
 
 hl.env("EDITOR", {{ .editor | quote }})
 
+-- Keep NVIDIA's shader cache large and never prune it, so games don't recompile shaders.
+hl.env("__GL_SHADER_DISK_CACHE_SIZE", "12000000000")
+hl.env("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP", "1")
+
 o.exec_on_start("check-status")
 o.exec_on_start("check-agents-sync")
 o.launch_on_start("bitwarden")
