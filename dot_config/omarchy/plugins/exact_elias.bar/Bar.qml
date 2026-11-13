@@ -103,6 +103,39 @@ Item {
   property var clickTargets: []
   property var moduleSlots: []
 
+  // Layout entries marked `"drawer": true` fold away while idle and slide out
+  // with the tray's chevron. A widget that reports `drawerActive` stays on the
+  // bar regardless. Without a visible tray there is no handle to reveal them
+  // with, so they simply stay on the bar.
+  property bool drawerHovered: false
+  readonly property bool drawerOpen: drawerHovered || drawerCloseDelay.running
+  readonly property var trayItem: {
+    for (var i = 0; i < moduleSlots.length; i++) {
+      var slot = moduleSlots[i]
+      if (slot && slot.isTray && slot.activeItem && slot.activeItem.visible) return slot.activeItem
+    }
+    return null
+  }
+
+  function refreshDrawerHover() {
+    var hovered = moduleSlots.some(function(slot) { return slot && slot.drawerHover })
+    if (drawerHovered && !hovered) drawerCloseDelay.restart()
+    drawerHovered = hovered
+  }
+
+  Timer { id: drawerCloseDelay; interval: 300 }
+
+  // The tray folds its own drawer as soon as the pointer leaves it; keep it
+  // open while the pointer is on one of our drawer widgets instead.
+  onDrawerOpenChanged: if (trayItem) trayItem.expanded = drawerOpen
+  Connections {
+    target: root.trayItem
+    ignoreUnknownSignals: true
+    function onExpandedChanged() {
+      if (root.trayItem.expanded !== root.drawerOpen) root.trayItem.expanded = root.drawerOpen
+    }
+  }
+
   function registerClickTarget(target) {
     if (!target || clickTargets.indexOf(target) !== -1) return
     var next = clickTargets.slice()
@@ -355,32 +388,6 @@ Item {
   // not stranded mid-section.
   function pinTrayToInner(entries, section) {
     return BarModel.pinTrayToInner(entries, section)
-  }
-
-  // The stock tray keeps its fully expanded width reserved and only slides
-  // its glyphs inside that slot. That is invisible on a full-width bar, but
-  // an island would otherwise paint the reserved drawer as empty background.
-  // Keep the stock interaction geometry and trim only the island's leading
-  // edge by the portion of the drawer that is still concealed.
-  function concealedTrayExtent(sectionItem, entries, region) {
-    if (!islandsEnabled || vertical || region !== "right" || !entries || entries.length === 0)
-      return 0
-    if (entryId(entries[0]) !== "omarchy.tray") return 0
-
-    var sectionWindow = targetWindow(sectionItem)
-    for (var i = 0; i < moduleSlots.length; i++) {
-      var slot = moduleSlots[i]
-      if (!slot || slot.region !== region || slot.moduleName !== "omarchy.tray") continue
-      if (!sameWindow(slotWindow(slot), sectionWindow)) continue
-
-      var tray = slot.activeItem
-      if (!tray || !("drawerExtent" in tray) || !("revealExtent" in tray)) return 0
-      var drawerExtent = Number(tray.drawerExtent)
-      var revealExtent = Number(tray.revealExtent)
-      if (!isFinite(drawerExtent) || !isFinite(revealExtent)) return 0
-      return Math.max(0, drawerExtent - revealExtent)
-    }
-    return 0
   }
 
   function applyBarConfig() {
@@ -1555,7 +1562,6 @@ Item {
     property int trailingPadding: 4
     readonly property int effectiveLeadingPadding: root.islandsEnabled ? Style.space(leadingPadding) : 0
     readonly property int effectiveTrailingPadding: root.islandsEnabled ? Style.space(trailingPadding) : 0
-    readonly property real concealedLeadingExtent: root.concealedTrayExtent(sectionIsland, entries, region)
 
     visible: entries.length > 0
     implicitWidth: sectionModules.width + effectiveLeadingPadding + effectiveTrailingPadding
@@ -1564,7 +1570,8 @@ Item {
     BorderSurface {
       visible: root.islandsEnabled
       anchors.left: parent.left
-      anchors.leftMargin: sectionIsland.concealedLeadingExtent
+      // The tray now reserves only its revealed width, so the entire section
+      // (including the collapsed chevron) needs the island background.
       anchors.right: parent.right
       anchors.top: parent.top
       anchors.topMargin: root.islandInset
@@ -1676,16 +1683,44 @@ Item {
       if (hint !== undefined && hint !== null && hint > 0) return Math.round(hint)
       return Math.max(Style.space(10), Math.round((root.vertical ? slot.height : slot.width) * 0.55))
     }
-    implicitWidth: activeItem && activeItem.visible ? (root.vertical ? root.barSize : activeItem.implicitWidth) : 0
-    implicitHeight: activeItem && activeItem.visible ? activeItem.implicitHeight : 0
+    readonly property bool isTray: moduleName === "omarchy.tray"
+    readonly property bool inDrawer: !!entry && typeof entry === "object" && entry.drawer === true
+    readonly property bool drawerActive: !!activeItem && activeItem.drawerActive === true
+    readonly property bool folded: inDrawer && root.trayItem !== null && !root.drawerOpen && !drawerActive && !panelOpen
+    // The tray grows with revealExtent; only pinned icons are outside the
+    // hover handle. Respect either fixed edge when locating that handle.
+    readonly property bool drawerHover: {
+      if (!moduleHover.hovered) return false
+      if (inDrawer) return true
+      if (!isTray || !activeItem) return false
+      if (root.vertical) return true
+      var pinnedExtent = activeItem.pinnedItems ? activeItem.pinnedItems.length * activeItem.trayItemExtent : 0
+      var handleStart = activeItem.fixedAtStart ? pinnedExtent : 0
+      var handleEnd = activeItem.fixedAtStart ? activeItem.implicitWidth : activeItem.implicitWidth - pinnedExtent
+      var x = moduleHover.point.position.x
+      return x >= handleStart && x <= handleEnd
+    }
+    onDrawerHoverChanged: root.refreshDrawerHover()
+    property real drawerReveal: folded ? 0 : 1
+    Behavior on drawerReveal {
+      NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
+    }
+
+    implicitWidth: activeItem && activeItem.visible
+      ? (root.vertical ? root.barSize : Math.round(activeItem.implicitWidth * drawerReveal)) : 0
+    implicitHeight: activeItem && activeItem.visible
+      ? (root.vertical ? Math.round(activeItem.implicitHeight * drawerReveal) : activeItem.implicitHeight) : 0
     width: implicitWidth
     height: implicitHeight
+    opacity: inDrawer ? drawerReveal : 1
+    clip: inDrawer
     z: modulePointer.dragging ? 100 : 0
 
     Component.onCompleted: root.registerModuleSlot(slot)
     Component.onDestruction: {
       if (root.barDragSource === slot) root.clearBarDrag()
       root.unregisterModuleSlot(slot)
+      root.refreshDrawerHover()
     }
 
     HoverHandler { id: moduleHover }
