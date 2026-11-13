@@ -227,3 +227,12 @@ packages:
 - name: zsh
   device: all
   environment: dev
+- name: herdr
+  device: all
+  environment: desktop,dev
+- name: just
+  device: all
+  environment: desktop,dev
+- name: openai-codex-desktop
+  device: all
+  environment: desktop,dev
