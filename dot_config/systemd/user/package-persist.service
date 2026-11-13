@@ -1,0 +1,7 @@
+[Unit]
+Description=Review untracked explicitly installed packages for dotfiles persistence
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/package-persist check
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus

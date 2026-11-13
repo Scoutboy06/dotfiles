@@ -1,0 +1,216 @@
+#!/usr/bin/python3
+"""Review explicitly installed packages missing from the dotfiles manifests.
+
+This is an inventory, not an installation-history tracker: packages installed by
+system setup or updates can also be marked explicit by pacman.
+"""
+
+from __future__ import annotations
+
+import argparse
+from io import StringIO
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
+
+STATE_FILE = Path.home() / '.local/share/package-persist/state.json'
+DEVICES = ('all', 'eliaspc', 'eliaslt', 'worklt', 'server')
+ENVIRONMENTS = ('dev', 'desktop', 'desktop,dev')
+
+
+def output(command):
+    result = subprocess.run(command, capture_output=True, text=True)
+    # pacman returns 1 for an empty filtered package query, too.
+    if (command in (['pacman', '-Qqe'], ['pacman', '-Qqm'])
+            and result.returncode == 1 and not result.stdout and not result.stderr):
+        return ''
+    result.check_returncode()
+    return result.stdout.strip()
+
+
+def source_dir():
+    return Path(output(['chezmoi', 'source-path']))
+
+
+def yaml_parser():
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=2, offset=0)
+    return yaml
+
+
+def load_manifest(root, manager):
+    path = root / '.packages' / f'packages-{manager}.yaml'
+    data = yaml_parser().load(path.read_text())
+    if not isinstance(data, dict) or not isinstance(data.get('packages'), list):
+        raise ValueError(f'Invalid package manifest: {path}')
+    for entry in data['packages']:
+        if not isinstance(entry, dict) or not all(
+            isinstance(entry.get(key), str) and entry[key]
+            for key in ('name', 'device', 'environment')
+        ):
+            raise ValueError(f'Invalid package entry in {path}: {entry!r}')
+    return data
+
+
+def load_state():
+    if not STATE_FILE.exists():
+        return {'ignored_pacman': [], 'ignored_aur': []}
+    state = json.loads(STATE_FILE.read_text())
+    if not isinstance(state, dict):
+        raise ValueError(f'Invalid state: {STATE_FILE}')
+    for key in ('ignored_pacman', 'ignored_aur'):
+        state.setdefault(key, [])
+        if not isinstance(state[key], list) or not all(isinstance(x, str) for x in state[key]):
+            raise ValueError(f'Invalid {key} in {STATE_FILE}')
+    return state
+
+
+def atomic_write(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(text)
+        if path.exists():
+            temporary.chmod(path.stat().st_mode & 0o777)
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def inventory(root, state):
+    manifests = {manager: load_manifest(root, manager) for manager in ('pacman', 'aur')}
+    # AUR packages can move into sync repositories (including third-party repos).
+    known = {entry['name'] for data in manifests.values() for entry in data['packages']}
+    ignored = set(state['ignored_pacman']) | set(state['ignored_aur'])
+    explicit = set(output(['pacman', '-Qqe']).splitlines())
+    foreign = set(output(['pacman', '-Qqm']).splitlines())
+    candidates = explicit - known - ignored
+    return manifests, {'pacman': sorted(candidates - foreign), 'aur': sorted(candidates & foreign)}
+
+
+def persist(root, selected, device, environment):
+    # Load and validate both files before writing either; never recreate a missing
+    # manifest or fall back to the obsolete .chezmoidata/packages.yaml schema.
+    manifests = {manager: load_manifest(root, manager) for manager in ('pacman', 'aur')}
+    known = {entry['name'] for data in manifests.values() for entry in data['packages']}
+    for manager, packages in selected.items():
+        if not packages:
+            continue
+        data = manifests[manager]
+        for name in sorted(set(packages) - known):
+            data['packages'].append({'name': name, 'device': device, 'environment': environment})
+            known.add(name)
+        stream = StringIO()
+        yaml_parser().dump(data, stream)
+        atomic_write(root / '.packages' / f'packages-{manager}.yaml', stream.getvalue())
+
+
+def choose_metadata(value, label, choices):
+    if value is not None:
+        return value
+    while True:
+        value = input(f'{label} ({", ".join(choices)}): ').strip()
+        if value in choices:
+            return value
+        print('Choose one of the listed values (Ctrl-C to cancel).')
+
+
+def decide(args, root, state, pending):
+    items = {f'[{manager}] {name}' for manager, names in pending.items() for name in names}
+    if not items:
+        print('No packages awaiting review.')
+        return 0
+    print('Review ALL untracked explicit packages, not just recent installs.')
+    print('Select packages to persist; unselected packages will be ignored.')
+    result = subprocess.run(
+        ['fzf', '--multi', '--header=TAB: select | ENTER: confirm | ESC: cancel',
+         '--prompt=Persist: ', '--bind=ctrl-a:select-all,ctrl-d:deselect-all'],
+        input='\n'.join(sorted(items)), capture_output=True, text=True,
+    )
+    if result.returncode == 130:
+        print('Cancelled; no changes.')
+        return 0
+    # fzf returns 1 when nothing is selected; require confirmation below. Any
+    # other failure must not silently ignore the entire inventory.
+    if result.returncode not in (0, 1):
+        raise RuntimeError(f'fzf failed ({result.returncode}): {result.stderr.strip()}')
+    selected_items = set(result.stdout.splitlines())
+    if not selected_items <= items:
+        raise ValueError('Unexpected selection from fzf')
+    selected = {manager: [name for name in names if f'[{manager}] {name}' in selected_items]
+                for manager, names in pending.items()}
+    ignored = {manager: sorted(set(names) - set(selected[manager])) for manager, names in pending.items()}
+    device = environment = None
+    if selected_items:
+        device = choose_metadata(args.device, 'Device for selected packages', DEVICES)
+        environment = choose_metadata(args.environment, 'Environment for selected packages', ENVIRONMENTS)
+        print(f'Persist {len(selected_items)} package(s): device={device}, environment={environment}')
+    for manager in pending:
+        print(f'{manager}: persist {", ".join(selected[manager]) or "none"}')
+        print(f'{manager}: ignore {", ".join(ignored[manager]) or "none"}')
+    if input('Save these decisions? [y/N] ').strip().lower() not in ('y', 'yes'):
+        print('Cancelled; no changes.')
+        return 0
+    if selected_items:
+        persist(root, selected, device, environment)
+    for manager, names in ignored.items():
+        key = f'ignored_{manager}'
+        state[key] = sorted(set(state[key]) | set(names))
+    atomic_write(STATE_FILE, json.dumps(state, indent=2) + '\n')
+    print('Decisions saved. Commit the dotfiles manifest changes when ready.')
+    return 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest='command', required=True)
+    for name in ('status', 'check', 'decide'):
+        command = commands.add_parser(name)
+        command.add_argument('-v', '--verbose', action='store_true')
+        if name == 'decide':
+            command.add_argument('--device', choices=DEVICES)
+            command.add_argument('--environment', choices=ENVIRONMENTS)
+    args = parser.parse_args(argv)
+    try:
+        root = source_dir()
+        state = load_state()
+        manifests, pending = inventory(root, state)
+        if args.command == 'decide':
+            return decide(args, root, state, pending)
+        counts = f'{len(pending["pacman"])} pacman + {len(pending["aur"])} foreign/AUR'
+        if args.command == 'check':
+            if any(pending.values()):
+                subprocess.run(['notify-send', 'Package Persistence',
+                                f'{counts} package(s) awaiting review\nRun: package-persist decide'], check=True)
+            if args.verbose:
+                print(f'Awaiting review: {counts}')
+            return 0
+        print(f'Awaiting review: {counts}')
+        print('All untracked explicitly installed packages, regardless of installation date.')
+        for manager in pending:
+            print(f'{manager}: {len(manifests[manager]["packages"])} persisted, '
+                  f'{len(state[f"ignored_{manager}"])} ignored')
+            if args.verbose:
+                for name in pending[manager]:
+                    print(f'  [{manager}] {name}')
+        return 0
+    except (OSError, ValueError, RuntimeError, YAMLError, subprocess.CalledProcessError) as error:
+        print(f'Error: {error}', file=sys.stderr)
+        return 1
+    except (KeyboardInterrupt, EOFError):
+        print('\nCancelled; no further changes.', file=sys.stderr)
+        return 130
+
+
+if __name__ == '__main__':
+    sys.exit(main())
