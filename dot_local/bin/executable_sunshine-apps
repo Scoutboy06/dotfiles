@@ -33,7 +33,7 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument(
         '--dry-run',
         action='store_true',
-        help="List games that would be added without writing JSON"
+        help="List entries that would be added without writing JSON"
     )
     return parser.parse_args(argv)
 
@@ -81,8 +81,15 @@ def main(argv: list[str] | None = None) -> int:
             game for game in steam_games
             if str(game.get("id")) not in existing_ids
         ]
+        desktop_needed = not any(
+            (app.get("name") or "").casefold() == "desktop"
+            and not any(app.get(key) for key in ("cmd", "detached", "prep-cmd"))
+            for app in base_config["apps"]
+        )
 
         if args.dry_run:
+            if desktop_needed:
+                print("Desktop entry would be added.")
             if not games_to_add:
                 print("No games would be added.")
             else:
@@ -90,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
                 for game in games_to_add:
                     print(f"  {game.get('name')} ({game.get('id')})")
             return 0
+
+        # With no launch command, Sunshine streams the current desktop.
+        if desktop_needed:
+            base_config["apps"].append({"name": "Desktop", "image-path": "desktop.png"})
 
         # 4. Generate basic entries for missing Steam games.
         for game in games_to_add:
